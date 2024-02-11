@@ -91,11 +91,12 @@ impl Input {
                 }
             }
             Event::DeviceEvent {
-                event: DeviceEvent::Motion { axis, value },
+                event: DeviceEvent::MouseMotion { delta },
                 ..
             } => {
-                if self.mouse_enabled && axis < 2 {
-                    self.mouse_rel[axis as usize] += value as f32;
+                if self.mouse_enabled {
+                    self.mouse_rel[0] += delta.0 as f32;
+                    self.mouse_rel[1] += delta.1 as f32;
                 }
             }
             Event::DeviceEvent {

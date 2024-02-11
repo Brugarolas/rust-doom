@@ -88,6 +88,10 @@ impl<'context> System<'context> for Window {
                 .map_err(|e| ErrorKind::CreateWindow(e.to_string()))?,
         );
 
+        window
+            .set_cursor_grab(winit::window::CursorGrabMode::Confined)
+            .map_err(|e| ErrorKind::CreateWindow(e.to_string()))?;
+
         let instance = create_instance();
         let surface = instance
             .create_surface(window.clone())
