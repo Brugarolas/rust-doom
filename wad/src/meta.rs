@@ -127,10 +127,20 @@ pub struct LinedefMetadata {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct SwitchMetadata {
+    #[serde(deserialize_with = "deserialize_name_from_str")]
+    pub on_texture: WadName,
+
+    #[serde(deserialize_with = "deserialize_name_from_str")]
+    pub off_texture: WadName,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct WadMetadata {
     pub sky: Vec<SkyMetadata>,
     pub animations: AnimationMetadata,
     pub things: ThingDirectoryMetadata,
+    pub switches: Vec<SwitchMetadata>,
 
     #[serde(
         default = "Default::default",
@@ -351,6 +361,14 @@ mod test {
                     sprite = "BOSS"
                     sequence = "A"
                     hanging = false
+
+            [[switches]]
+            on_texture = "SW1BLUE"
+            off_texture = "SW2BLUE"
+
+            [[switches]]
+            on_texture = "SW1BRCOM"
+            off_texture = "SW2BRCOM"
         "#,
         )
         .expect("test: could not parse test metadata");
