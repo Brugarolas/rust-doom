@@ -3,9 +3,12 @@ use super::errors::Result;
 use super::types::{LightLevel, SectorId, VertexId, WadNode, WadSector};
 use super::types::{WadCoord, WadLinedef, WadSeg, WadSidedef, WadSubsector, WadThing, WadVertex};
 use super::util::from_wad_coords;
-use log::{error, info};
+use geo::{coord, point, Contains, Polygon};
+use log::{debug, error, info, warn};
 use math::Pnt2f;
+use multimap::MultiMap;
 use std::cmp;
+use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::slice::Iter as SliceIter;
 use std::vec::Vec;
@@ -28,6 +31,7 @@ pub struct Level {
     pub subsectors: Vec<WadSubsector>,
     pub nodes: Vec<WadNode>,
     pub sectors: Vec<WadSector>,
+    pub things_by_sector: HashMap<usize, HashSet<usize>>,
 }
 
 impl Level {
@@ -57,6 +61,8 @@ impl Level {
         let sectors = wad
             .lump_by_index(start_index + SECTORS_OFFSET)?
             .decode_vec()?;
+        let things_by_sector =
+            Self::compute_things_by_sector(&things, &linedefs, &sidedefs, &sectors, &vertices);
 
         info!("Loaded level '{}':", lump.name());
         info!("    {:4} things", things.len());
@@ -77,6 +83,7 @@ impl Level {
             subsectors,
             nodes,
             sectors,
+            things_by_sector,
         })
     }
 
@@ -209,6 +216,108 @@ impl Level {
                 },
             })
         })
+    }
+
+    fn compute_things_by_sector(
+        things: &[WadThing],
+        linedefs: &[WadLinedef],
+        sidedefs: &[WadSidedef],
+        sectors: &[WadSector],
+        vertices: &[WadVertex],
+    ) -> HashMap<usize, HashSet<usize>> {
+        let mut result = HashMap::default();
+        for (sector_index, sector) in sectors.iter().enumerate() {
+            if sector.tag == 0 {
+                continue;
+            }
+            let sector_linedefs = linedefs
+                .iter()
+                .filter(|l| {
+                    (l.left_side >= 0
+                        && sidedefs[l.left_side as usize].sector == sector_index as u16)
+                        || (l.right_side >= 0
+                            && sidedefs[l.right_side as usize].sector == sector_index as u16)
+                })
+                .collect::<Vec<_>>();
+            debug!(
+                "Sector {}, tag {}: linedefs {:?}",
+                sector_index, sector.tag, sector_linedefs
+            );
+            let mut lines = sector_linedefs
+                .into_iter()
+                .flat_map(|l| {
+                    vec![
+                        (l.start_vertex, l.end_vertex),
+                        (l.end_vertex, l.start_vertex),
+                    ]
+                })
+                .collect::<MultiMap<_, _>>();
+            debug!(
+                "Sector {sector_index}, tag {}: lines {:?}",
+                sector.tag, lines
+            );
+            let Some(mut current_vertex) = lines.keys().next().cloned() else {
+                panic!("No linedefs for sector {}", sector_index);
+            };
+            let mut visited = HashSet::from([current_vertex]);
+            let mut sector_vertices = vec![coord!(
+                x: vertices[current_vertex as usize].x as f32,
+                y: vertices[current_vertex as usize].y as f32
+            )];
+            while !lines.is_empty() {
+                let Some(next_vertex) = lines.remove(&current_vertex).and_then(|vertices| {
+                    vertices.into_iter().filter(|v| !visited.contains(v)).next()
+                }) else {
+                    warn!(
+                        "Sector {sector_index}, tag {}: Could not find corresponding linedef to {:?} ({}, {})",
+                        sector.tag,
+                        current_vertex,
+                        vertices[current_vertex as usize].x,
+                        vertices[current_vertex as usize].y,
+                    );
+                    break;
+                };
+                sector_vertices.push(coord!(
+                    x: vertices[next_vertex as usize].x as f32,
+                    y: vertices[next_vertex as usize].y as f32
+                ));
+                current_vertex = next_vertex;
+                visited.insert(current_vertex);
+            }
+            let sector_polygon = Polygon::new(geo::LineString(sector_vertices), vec![]);
+            debug!(
+                "Sector {sector_index}, tag {}: polygon {:?}",
+                sector.tag, sector_polygon
+            );
+            let thing_indices = things
+                .iter()
+                .enumerate()
+                .filter_map(|(thing_index, thing)| {
+                    if sector_polygon.contains(&point!((thing.x as f32, thing.y as f32))) {
+                        Some(thing_index)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            debug!(
+                "Sector {sector_index}, tag {}: things {:?}",
+                sector.tag, thing_indices
+            );
+            result.insert(sector_index, thing_indices);
+        }
+        result
+    }
+
+    pub(crate) fn things_in_sector(&self, sector_index: usize) -> Vec<&WadThing> {
+        let Some(thing_indices) = self.things_by_sector.get(&sector_index) else {
+            return vec![];
+        };
+
+        thing_indices
+            .into_iter()
+            .map(|&i| &self.things[i])
+            .collect()
     }
 }
 

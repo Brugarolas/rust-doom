@@ -56,6 +56,7 @@ pub enum TriggerType {
     Push,
     Switch,
     WalkOver,
+    WalkOverOneWay,
     Gun,
 }
 
@@ -108,6 +109,12 @@ pub enum ExitEffectDef {
     Secret,
 }
 
+#[derive(Debug, Deserialize, Copy, Clone)]
+pub struct TeleportEffectDef {
+    #[serde(default = "Default::default")]
+    pub monsters_only: bool,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct LinedefMetadata {
     pub special_type: SpecialType,
@@ -124,6 +131,9 @@ pub struct LinedefMetadata {
 
     #[serde(rename = "exit")]
     pub exit_effect: Option<ExitEffectDef>,
+
+    #[serde(rename = "teleport")]
+    pub teleport_effect: Option<TeleportEffectDef>,
 }
 
 #[derive(Debug, Deserialize)]

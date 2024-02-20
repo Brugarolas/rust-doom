@@ -15,7 +15,7 @@ use vec_map::VecMap;
 use wad::tex::Bounds as WadBounds;
 use wad::{
     Decor, ExitEffectDef, LevelVisitor, LightInfo, Marker, MoveEffect, ObjectId, SkyPoly, SkyQuad,
-    StaticPoly, StaticQuad, Trigger, TriggerType,
+    StaticPoly, StaticQuad, TeleportEffect, Trigger, TriggerType,
 };
 
 pub struct Level {
@@ -24,6 +24,7 @@ pub struct Level {
     triggers: Vec<Trigger>,
     removed: Vec<usize>,
     effects: VecMap<MoveEffect>,
+    teleport_effect: Option<TeleportEffect>,
     exit_trigger: Option<ExitEffectDef>,
     level_changed: bool,
     previous_level_index: usize,
@@ -104,6 +105,15 @@ impl Level {
                         triggered = true;
                     }
                 }
+                TriggerType::WalkOverOneWay => {
+                    if let Some(offset) = walked.segment_intersect_offset_one_way(&trigger.line) {
+                        debug!(
+                            "Trigger {} walk-activated one-way offset={}",
+                            i_trigger, offset
+                        );
+                        triggered = true;
+                    }
+                }
                 TriggerType::Push | TriggerType::Switch => {
                     if let Some((PlayerAction::Push, line)) = action_and_line {
                         if let Some(offset) = line.segment_intersect_offset(&trigger.line) {
@@ -148,6 +158,10 @@ impl Level {
                     self.effects.insert(effect_index, effect);
                 }
 
+                if let Some(teleport_effect) = trigger.teleport_effect.as_ref() {
+                    self.teleport_effect = Some(teleport_effect.clone());
+                }
+
                 if trigger.unimplemented {
                     error!("Unimpemented trigger: {}", trigger.special_type);
                 }
@@ -166,6 +180,10 @@ impl Level {
             self.triggers.swap_remove(i_removed);
         }
         self.removed.clear()
+    }
+
+    pub fn teleport_effect(&mut self) -> Option<TeleportEffect> {
+        self.teleport_effect.take()
     }
 }
 
@@ -550,6 +568,7 @@ impl<'a> Builder<'a> {
             triggers: deps.wad.analysis.take_triggers(),
             removed: Vec::with_capacity(128),
             effects: VecMap::new(),
+            teleport_effect: None,
             start_pos: builder.start_pos,
             start_yaw: builder.start_yaw,
             lights: builder.lights,

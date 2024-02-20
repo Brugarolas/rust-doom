@@ -1446,6 +1446,27 @@ extended = true
 only_once = true
 exit = "Secret"
 
+[[linedef]]
+special_type = 39
+trigger = "WalkOverOneWay"
+only_once = true
+teleport = {}
+
+[[linedef]]
+special_type = 97
+trigger = "WalkOverOneWay"
+teleport = {}
+
+[[linedef]]
+special_type = 125
+trigger = "WalkOverOneWay"
+only_once = true
+teleport = { monsters_only = true }
+
+[[linedef]]
+special_type = 126
+trigger = "WalkOverOneWay"
+teleport = { monsters_only = true }
 
 ### Thing Directory ###
 #   Thing types to sprites and behaviour were again hardcoded in the original

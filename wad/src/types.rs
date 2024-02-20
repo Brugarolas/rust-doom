@@ -30,7 +30,7 @@ pub struct WadLump {
     pub name: WadName,
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Debug, Copy, Clone, Deserialize)]
 pub struct WadThing {
     pub x: WadCoord,
     pub y: WadCoord,
@@ -45,7 +45,7 @@ pub struct WadVertex {
     pub y: WadCoord,
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Debug, Copy, Clone, Deserialize)]
 pub struct WadLinedef {
     pub start_vertex: VertexId,
     pub end_vertex: VertexId,

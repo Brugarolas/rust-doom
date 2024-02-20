@@ -57,6 +57,20 @@ impl<T: BaseFloat> Line2<T> {
         })
     }
 
+    pub fn segment_intersect_offset_one_way(&self, other: &Line2<T>) -> Option<T> {
+        let Some(offset) = self.segment_intersect_offset(other) else {
+            return None;
+        };
+
+        let angle = self.displace.angle(other.displace);
+
+        if angle.sin() < T::zero() {
+            Some(offset)
+        } else {
+            None
+        }
+    }
+
     pub fn offset_at(&self, point: Pnt2<T>) -> T {
         if self.displace.x.abs() > self.displace.y.abs() {
             (point.x - self.origin.x) / self.displace.x

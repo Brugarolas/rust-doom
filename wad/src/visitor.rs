@@ -1,7 +1,8 @@
 use super::level::{Level, NeighbourHeights};
 use super::light::{self, Contrast, LightInfo};
 use super::meta::{
-    ExitEffectDef, HeightDef, HeightEffectDef, HeightRef, MoveEffectDef, TriggerType, WadMetadata,
+    ExitEffectDef, HeightDef, HeightEffectDef, HeightRef, LinedefMetadata, MoveEffectDef,
+    TriggerType, WadMetadata,
 };
 use super::tex::TextureDirectory;
 use super::types::{
@@ -270,6 +271,12 @@ pub struct MoveEffect {
     pub repeat: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct TeleportEffect {
+    pub target: WadThing,
+    pub target_height: i16,
+}
+
 impl HeightDef {
     fn to_height(self, sector: &WadSector, heights: &NeighbourHeights) -> Option<WadCoord> {
         let base = match self.to {
@@ -311,6 +318,7 @@ pub struct Trigger {
     pub move_effect_def: Option<MoveEffectDef>,
     pub exit_effect: Option<ExitEffectDef>,
     pub move_effects: Vec<MoveEffect>,
+    pub teleport_effect: Option<TeleportEffect>,
 }
 
 pub struct LevelAnalysis {
@@ -466,6 +474,7 @@ impl LevelAnalysis {
         };
 
         Some(if let Some(meta) = meta.linedef.get(&special_type) {
+            let teleport_effect = Self::teleport_effect(meta, linedef, level);
             Trigger {
                 trigger_type: meta.trigger,
 
@@ -477,6 +486,7 @@ impl LevelAnalysis {
 
                 line,
                 move_effects: Vec::new(),
+                teleport_effect,
             }
         } else {
             error!("Unknown linedef special type: {}", special_type);
@@ -491,8 +501,47 @@ impl LevelAnalysis {
 
                 line,
                 move_effects: Vec::new(),
+                teleport_effect: None,
             }
         })
+    }
+
+    fn teleport_effect(
+        meta: &LinedefMetadata,
+        linedef: &WadLinedef,
+        level: &Level,
+    ) -> Option<TeleportEffect> {
+        const TELEPORT_THING_TYPE: ThingType = 14;
+        if let Some(teleport_effect_def) = meta.teleport_effect {
+            if teleport_effect_def.monsters_only {
+                return None;
+            }
+            let Some((sector_index, sector)) = level
+                .sectors
+                .iter()
+                .enumerate()
+                .find(|(_, sector)| sector.tag == linedef.sector_tag)
+            else {
+                panic!("Could not find sector with tag {}", linedef.sector_tag);
+            };
+            let Some(teleport_destination) = level
+                .things_in_sector(sector_index)
+                .into_iter()
+                .find(|thing| thing.thing_type == TELEPORT_THING_TYPE)
+            else {
+                panic!(
+                    "Could not find teleport destination in sector {sector_index}, tag {}",
+                    linedef.sector_tag
+                );
+            };
+            debug!("Found teleport destination for linedef {linedef:?}: {teleport_destination:?}");
+            Some(TeleportEffect {
+                target: teleport_destination.clone(),
+                target_height: sector.floor_height,
+            })
+        } else {
+            None
+        }
     }
 }
 

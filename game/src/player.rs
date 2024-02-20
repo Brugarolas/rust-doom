@@ -1,12 +1,14 @@
 use super::level::{Level, PlayerAction};
+use cgmath::Vector3;
 use engine::{
     Analog2d, DependenciesFrom, Entities, EntityId, Gesture, InfallibleSystem, Input, MouseButton,
     Projection, Projections, RenderPipeline, Tick, Transforms, Window,
 };
-use log::error;
+use log::{error, info};
 use math::prelude::*;
 use math::{vec3, Deg, Euler, Pnt3f, Quat, Rad, Sphere, Trans3, Vec3f};
 use std::f32::consts::FRAC_PI_2;
+use wad::util::{from_wad_coords, from_wad_height};
 use winit::keyboard::KeyCode;
 
 pub struct Bindings {
@@ -406,6 +408,22 @@ impl<'context> InfallibleSystem<'context> for Player {
                 None
             },
         );
+
+        if let Some(teleport_effect) = deps.level.teleport_effect() {
+            info!(
+                "Teleporting from {:?} via {teleport_effect:?}",
+                transform.disp,
+            );
+            let destination = from_wad_coords(teleport_effect.target.x, teleport_effect.target.y);
+            let target_height = from_wad_height(teleport_effect.target_height) + deps.config.height;
+            transform.disp = Vector3::new(destination.x, target_height, destination.y);
+            transform.rot = Quat::from(Euler {
+                x: Rad(1e-8),
+                y: Deg(teleport_effect.target.angle as f32).into(),
+                z: Rad(0.0),
+            });
+            self.velocity = Vec3f::zero();
+        }
     }
 
     fn teardown(&mut self, deps: Dependencies) {
