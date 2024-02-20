@@ -14,8 +14,8 @@ use std::time::Instant;
 use vec_map::VecMap;
 use wad::tex::Bounds as WadBounds;
 use wad::{
-    Decor, LevelVisitor, LightInfo, Marker, MoveEffect, ObjectId, SkyPoly, SkyQuad, StaticPoly,
-    StaticQuad, Trigger, TriggerType,
+    Decor, ExitEffectDef, LevelVisitor, LightInfo, Marker, MoveEffect, ObjectId, SkyPoly, SkyQuad,
+    StaticPoly, StaticQuad, Trigger, TriggerType,
 };
 
 pub struct Level {
@@ -24,8 +24,9 @@ pub struct Level {
     triggers: Vec<Trigger>,
     removed: Vec<usize>,
     effects: VecMap<MoveEffect>,
-    exit_triggered: bool,
+    exit_trigger: Option<ExitEffectDef>,
     level_changed: bool,
+    previous_level_index: usize,
 
     start_pos: Pnt3f,
     start_yaw: Rad<f32>,
@@ -155,8 +156,8 @@ impl Level {
                     self.removed.push(i_trigger);
                 }
 
-                if trigger.exit_effect.is_some() {
-                    self.exit_triggered = true;
+                if let Some(exit_effect) = trigger.exit_effect {
+                    self.exit_trigger = Some(exit_effect);
                 }
             }
         }
@@ -192,11 +193,17 @@ impl<'context> System<'context> for Level {
             self.level_changed = false;
         }
 
-        if self.exit_triggered {
-            self.exit_triggered = false;
+        if let Some(exit_trigger) = self.exit_trigger.take() {
             deps.entities.remove(self.root);
             let current_index = deps.wad.level_index();
-            deps.wad.change_level(current_index + 1);
+            let new_level_index = match (current_index, exit_trigger) {
+                (n, _) if n % 9 == 8 => self.previous_level_index + 1,
+                (n, _) if n % 9 == 7 => current_index + 2,
+                (_, ExitEffectDef::Normal) => current_index + 1,
+                (n, ExitEffectDef::Secret) => n / 9 + 8,
+            };
+            self.previous_level_index = current_index;
+            deps.wad.change_level(new_level_index);
         }
 
         self.volume.update(deps.transforms);
@@ -546,8 +553,9 @@ impl<'a> Builder<'a> {
             start_pos: builder.start_pos,
             start_yaw: builder.start_yaw,
             lights: builder.lights,
-            exit_triggered: false,
+            exit_trigger: None,
             level_changed: true,
+            previous_level_index: 0,
         })
     }
 

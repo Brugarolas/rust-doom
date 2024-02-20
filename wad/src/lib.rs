@@ -16,7 +16,9 @@ pub use self::errors::{Error, ErrorKind, Result};
 pub use self::image::Image;
 pub use self::level::Level;
 pub use self::light::{LightEffect, LightEffectKind, LightInfo};
-pub use self::meta::{MoveEffectDef, SkyMetadata, ThingMetadata, TriggerType, WadMetadata};
+pub use self::meta::{
+    ExitEffectDef, MoveEffectDef, SkyMetadata, ThingMetadata, TriggerType, WadMetadata,
+};
 pub use self::name::WadName;
 pub use self::tex::{OpaqueImage, TextureDirectory, TransparentImage};
 pub use self::visitor::{
