@@ -27,7 +27,6 @@ pub struct Level {
     teleport_effect: Option<TeleportEffect>,
     exit_trigger: Option<ExitEffectDef>,
     level_changed: bool,
-    previous_level_index: usize,
 
     start_pos: Pnt3f,
     start_yaw: Rad<f32>,
@@ -215,12 +214,16 @@ impl<'context> System<'context> for Level {
             deps.entities.remove(self.root);
             let current_index = deps.wad.level_index();
             let new_level_index = match (current_index, exit_trigger) {
-                (n, _) if n % 9 == 8 => self.previous_level_index + 1,
+                (n, _) if n % 9 == 8 => match current_index {
+                    8 => 3,
+                    17 => 14,
+                    26 => 24,
+                    _ => unreachable!("Level {} is not a known secret level", current_index),
+                },
                 (n, _) if n % 9 == 7 => current_index + 2,
                 (_, ExitEffectDef::Normal) => current_index + 1,
                 (n, ExitEffectDef::Secret) => n / 9 + 8,
             };
-            self.previous_level_index = current_index;
             deps.wad.change_level(new_level_index);
         }
 
@@ -574,7 +577,6 @@ impl<'a> Builder<'a> {
             lights: builder.lights,
             exit_trigger: None,
             level_changed: true,
-            previous_level_index: 0,
         })
     }
 
