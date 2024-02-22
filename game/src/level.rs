@@ -15,7 +15,7 @@ use vec_map::VecMap;
 use wad::tex::Bounds as WadBounds;
 use wad::{
     Decor, ExitEffectDef, LevelVisitor, LightInfo, Marker, MoveEffect, ObjectId, SkyPoly, SkyQuad,
-    StaticPoly, StaticQuad, SwitchEffect, TeleportEffect, Trigger, TriggerType,
+    StaticPoly, StaticQuad, SwitchEffect, TeleportEffect, Trigger, TriggerType, WadMetadata,
 };
 
 pub struct Level {
@@ -32,6 +32,7 @@ pub struct Level {
     start_pos: Pnt3f,
     start_yaw: Rad<f32>,
     lights: Lights,
+    switches: Vec<SwitchState>,
     volume: World,
 }
 
@@ -54,6 +55,13 @@ pub struct Dependencies<'context> {
 pub enum PlayerAction {
     Push,
     Shoot,
+}
+
+#[derive(Default, Clone, Copy)]
+enum SwitchState {
+    #[default]
+    Off,
+    On,
 }
 
 impl Level {
@@ -284,33 +292,23 @@ impl<'context> System<'context> for Level {
         }
 
         if let Some(switch_effect) = self.switch_effect.take() {
-            let sidedef = &mut deps.wad.level.sidedefs[switch_effect.sidedef as usize];
-            for current_texture in [
-                &mut sidedef.lower_texture,
-                &mut sidedef.middle_texture,
-                &mut sidedef.upper_texture,
-            ] {
-                // TODO: This doesn't work: by this point, the mesh containing
-                // the texture coordinates has already been created from these
-                // data and loaded into the GPU. Somehow the mesh needs to be
-                // recreated and reloaded when the texture changes.
-                //
-                // Probably the level can just be rebuilt entirely, even though
-                // that's a lot of work.
-                if *current_texture == switch_effect.texture_off {
-                    debug!(
-                        "Switching {current_texture:?} to {:?}",
-                        switch_effect.texture_on
-                    );
-                    *current_texture = switch_effect.texture_on
-                } else if *current_texture == switch_effect.texture_on {
-                    debug!(
-                        "Switching {current_texture:?} to {:?}",
-                        switch_effect.texture_off
-                    );
-                    *current_texture = switch_effect.texture_off
-                }
-            }
+            self.switches[switch_effect.sidedef as usize] =
+                match self.switches[switch_effect.sidedef as usize] {
+                    SwitchState::Off => SwitchState::On,
+                    SwitchState::On => SwitchState::Off,
+                };
+            deps.uniforms.map_buffer(
+                deps.game_shaders.texture_alt_buffer(),
+                |buffer| {
+                    for (i, switch) in self.switches.iter().enumerate() {
+                        buffer[i] = match *switch {
+                            SwitchState::Off => 0,
+                            SwitchState::On => 1,
+                        };
+                    }
+                },
+                deps.window.queue(),
+            );
         }
 
         for &i_removed in &self.removed {
@@ -368,6 +366,7 @@ impl Indices {
 
 struct Builder<'a> {
     materials: &'a LevelMaterials,
+    meta: &'a WadMetadata,
 
     lights: Lights,
     start_pos: Pnt3f,
@@ -416,6 +415,7 @@ impl<'a> Builder<'a> {
 
         let mut builder = Builder {
             materials: deps.game_shaders.level_materials(),
+            meta: deps.wad.archive.metadata(),
 
             lights: Lights::new(),
             start_pos: Pnt3f::origin(),
@@ -611,6 +611,7 @@ impl<'a> Builder<'a> {
             start_pos: builder.start_pos,
             start_yaw: builder.start_yaw,
             lights: builder.lights,
+            switches: vec![SwitchState::Off; deps.wad.level.sidedefs.len()],
             exit_trigger: None,
             level_changed: true,
         })
@@ -626,17 +627,20 @@ impl<'a> Builder<'a> {
         light_info: u8,
         scroll_rate: f32,
         bounds: &WadBounds,
+        alt_bounds: &WadBounds,
+        texture_alt_index: u32,
     ) -> &mut Self {
         self.static_vertices.push(StaticVertex {
             a_pos: [xz[0], y, xz[1]],
             a_atlas_uv: [bounds.pos[0], bounds.pos[1]],
+            a_atlas_uv_alt: [alt_bounds.pos[0], alt_bounds.pos[1]],
             a_tile_uv: [tile_u, tile_v],
             a_tile_size: [bounds.size[0], bounds.size[1]],
             a_scroll_rate: scroll_rate,
             a_num_frames: bounds.num_frames as i32,
             a_row_height: bounds.row_height as f32,
             a_light: light_info as i32,
-            ..Default::default()
+            a_texture_alt_index: texture_alt_index,
         });
         self
     }
@@ -761,6 +765,7 @@ impl<'a> LevelVisitor for Builder<'a> {
         self.num_wall_quads += 1;
         let &StaticQuad {
             object_id,
+            sidedef_id,
             tex_name,
             light_info,
             scroll,
@@ -779,15 +784,73 @@ impl<'a> LevelVisitor for Builder<'a> {
         let bounds = if let Some(bounds) = self.materials.walls.bounds.get(&tex_name) {
             *bounds
         } else {
-            warn!("No such wall texture {}.", tex_name);
+            warn!("No such wall texture {tex_name}.");
             return;
         };
+        let alt_tex_name = self
+            .meta
+            .switches
+            .iter()
+            .find(|s| s.off_texture == tex_name)
+            .map(|s| s.on_texture);
+        let alt_bounds = alt_tex_name
+            .map(|alt_tex_name| {
+                let Some(bounds) = self.materials.walls.bounds.get(&alt_tex_name) else {
+                    warn!("No such wall texture {alt_tex_name}.");
+                    return &bounds;
+                };
+                bounds
+            })
+            .unwrap_or(&bounds);
         let light_info = self.add_light_info(light_info);
-        self.wall_vertex(v1, low, s1, t1, light_info, scroll, &bounds)
-            .wall_vertex(v2, low, s2, t1, light_info, scroll, &bounds)
-            .wall_vertex(v2, high, s2, t2, light_info, scroll, &bounds)
-            .wall_vertex(v1, high, s1, t2, light_info, scroll, &bounds)
-            .wall_quad(object_id);
+        // TODO: Technically not correct: this will default to 0 whose value is unconditionally
+        // read in the shader. If that points to the wrong value, then the alt bounds are used.
+        let sidedef_id = sidedef_id.unwrap_or_default() as u32;
+        self.wall_vertex(
+            v1,
+            low,
+            s1,
+            t1,
+            light_info,
+            scroll,
+            &bounds,
+            &alt_bounds,
+            sidedef_id,
+        )
+        .wall_vertex(
+            v2,
+            low,
+            s2,
+            t1,
+            light_info,
+            scroll,
+            &bounds,
+            &alt_bounds,
+            sidedef_id,
+        )
+        .wall_vertex(
+            v2,
+            high,
+            s2,
+            t2,
+            light_info,
+            scroll,
+            &bounds,
+            &alt_bounds,
+            sidedef_id,
+        )
+        .wall_vertex(
+            v1,
+            high,
+            s1,
+            t2,
+            light_info,
+            scroll,
+            &bounds,
+            &alt_bounds,
+            sidedef_id,
+        )
+        .wall_quad(object_id);
     }
 
     fn visit_floor_poly(&mut self, poly: &StaticPoly) {

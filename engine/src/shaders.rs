@@ -204,6 +204,18 @@ impl<'context> InfallibleSystem<'context> for Shaders {
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 6,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: NonZeroU64::new(
+                                (32768 * std::mem::size_of::<u32>()) as u64,
+                            ),
+                        },
+                        count: None,
+                    },
                 ],
             },
         );

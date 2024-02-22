@@ -1,3 +1,5 @@
+use crate::types::SidedefId;
+
 use super::archive::Archive;
 use super::errors::Result;
 use super::types::{LightLevel, SectorId, VertexId, WadNode, WadSector};
@@ -172,6 +174,13 @@ impl Level {
             / mem::size_of::<WadSector>();
         assert!(sector_id < self.sectors.len());
         sector_id as SectorId
+    }
+
+    pub fn sidedef_id(&self, sidedef: &WadSidedef) -> SidedefId {
+        let sidedef_id = (sidedef as *const _ as usize - self.sidedefs.as_ptr() as usize)
+            / mem::size_of::<WadSidedef>();
+        assert!(sidedef_id < self.sidedefs.len());
+        sidedef_id as SidedefId
     }
 
     pub fn adjacent_sectors(&self, sector: &WadSector) -> AdjacentSectorsIter {

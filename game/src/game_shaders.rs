@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::vertex::{SkyVertex, SpriteVertex, StaticVertex};
 
 use super::wad_system::WadSystem;
@@ -31,6 +33,10 @@ impl GameShaders {
 
     pub fn lights_buffer(&self) -> &wgpu::Buffer {
         &self.globals.lights_buffer
+    }
+
+    pub fn texture_alt_buffer(&self) -> &wgpu::Buffer {
+        &self.globals.texture_alt_buffer
     }
 
     pub fn level_materials(&self) -> &LevelMaterials {
@@ -110,6 +116,7 @@ pub struct GameShaders {
 struct Globals {
     time: FloatUniformId,
     lights_buffer: wgpu::Buffer,
+    texture_alt_buffer: wgpu::Buffer,
     static_shader: ShaderId,
     sky_shader: ShaderId,
     sprite_shader: ShaderId,
@@ -139,8 +146,15 @@ impl<'context> Dependencies<'context> {
             self.window,
             self.entities,
             parent,
-            "lights_buffer_texture",
+            "lights_buffer",
             LIGHTS_COUNT * std::mem::size_of::<u32>(),
+        )?;
+        let texture_alt_buffer = self.uniforms.add_persistent_buffer(
+            self.window,
+            self.entities,
+            parent,
+            "texture_alt_buffer",
+            32768 * std::mem::size_of::<u32>(),
         )?;
 
         let static_shader = self.load_shader::<StaticVertex>(
@@ -162,12 +176,18 @@ impl<'context> Dependencies<'context> {
             include_str!("../../assets/shaders/sprite.wgsl"),
         )?;
 
-        self.uniforms
-            .set_globals(self.window.device(), self.shaders, &lights_buffer, &palette);
+        self.uniforms.set_globals(
+            self.window.device(),
+            self.shaders,
+            &lights_buffer,
+            &texture_alt_buffer,
+            &palette,
+        );
 
         Ok(Globals {
             time,
             lights_buffer,
+            texture_alt_buffer,
             static_shader,
             sky_shader,
             sprite_shader,
@@ -266,6 +286,14 @@ impl<'context> Dependencies<'context> {
 
     fn load_walls_atlas(&mut self, parent: EntityId) -> Result<Atlas> {
         info!("Building walls atlas...");
+        let alt_textures = self
+            .wad
+            .archive
+            .metadata()
+            .switches
+            .iter()
+            .flat_map(|s| vec![(s.on_texture, s.off_texture), (s.off_texture, s.on_texture)])
+            .collect::<HashMap<_, _>>();
         let (image, bounds) = {
             let names = self
                 .wad
@@ -277,6 +305,13 @@ impl<'context> Dependencies<'context> {
                         .into_iter()
                         .chain(Some(sidedef.lower_texture))
                         .chain(Some(sidedef.middle_texture))
+                })
+                .flat_map(|name| {
+                    if let Some(alt_name) = alt_textures.get(&name) {
+                        vec![name, *alt_name]
+                    } else {
+                        vec![name]
+                    }
                 })
                 .filter(|&name| !is_untextured(name));
             self.wad.textures.build_texture_atlas(names)

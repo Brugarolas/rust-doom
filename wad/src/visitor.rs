@@ -27,6 +27,7 @@ use vec_map::VecMap;
 
 pub struct StaticQuad<'a> {
     pub object_id: ObjectId,
+    pub sidedef_id: Option<SidedefId>,
     pub vertices: (Pnt2f, Pnt2f),
     pub tex_start: (f32, f32),
     pub tex_end: (f32, f32),
@@ -827,6 +828,7 @@ impl<'a, V: LevelVisitor> LevelWalker<'a, V> {
             warn!("No sidedef found for seg, skipping seg.");
             return;
         };
+        let sidedef_id = Some(self.level.sidedef_id(sidedef));
         let (min, max) = (self.height_range.0, self.height_range.1);
         let (floor, ceiling) = (sector.floor_height, sector.ceiling_height);
         let unpeg_lower = line.lower_unpegged();
@@ -834,6 +836,7 @@ impl<'a, V: LevelVisitor> LevelWalker<'a, V> {
             None => {
                 self.wall_quad(InternalWallQuad {
                     sector,
+                    sidedef_id,
                     seg,
                     vertices,
                     object_id: if unpeg_lower {
@@ -874,6 +877,7 @@ impl<'a, V: LevelVisitor> LevelWalker<'a, V> {
         let floor = if back_info.floor_range.1 > info.floor_range.0 {
             self.wall_quad(InternalWallQuad {
                 sector,
+                sidedef_id: None,
                 seg,
                 vertices,
                 object_id: back_info.floor_id,
@@ -897,6 +901,7 @@ impl<'a, V: LevelVisitor> LevelWalker<'a, V> {
             if !is_sky_flat(back_sector.ceiling_texture) {
                 self.wall_quad(InternalWallQuad {
                     sector,
+                    sidedef_id,
                     seg,
                     vertices,
                     object_id: back_info.ceiling_id,
@@ -912,6 +917,7 @@ impl<'a, V: LevelVisitor> LevelWalker<'a, V> {
         };
         self.wall_quad(InternalWallQuad {
             sector,
+            sidedef_id,
             seg,
             vertices,
             object_id: if unpeg_lower {
@@ -939,6 +945,7 @@ impl<'a, V: LevelVisitor> LevelWalker<'a, V> {
     fn wall_quad(&mut self, quad: InternalWallQuad) {
         let InternalWallQuad {
             object_id,
+            sidedef_id,
             sector,
             seg,
             vertices: (v1, v2),
@@ -1033,6 +1040,7 @@ impl<'a, V: LevelVisitor> LevelWalker<'a, V> {
             blocker,
             scroll,
             object_id,
+            sidedef_id,
         });
     }
 
@@ -1433,6 +1441,7 @@ impl<'a, 'b, A: LevelVisitor, B: LevelVisitor> LevelVisitor for VisitorChain<'a,
 #[derive(Copy, Clone)]
 struct InternalWallQuad<'a> {
     object_id: ObjectId,
+    sidedef_id: Option<SidedefId>,
     sector: &'a WadSector,
     seg: &'a WadSeg,
     vertices: (Pnt2f, Pnt2f),

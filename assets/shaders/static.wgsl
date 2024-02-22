@@ -4,6 +4,7 @@
 @group(0) @binding(3) var<uniform> u_time: f32;
 @group(0) @binding(4) var u_palette: texture_2d<f32>;
 @group(0) @binding(5) var u_palette_sampler: sampler;
+@group(0) @binding(6) var<storage, read> u_texture_alt: array<u32>;
 
 @group(1) @binding(0) var u_atlas: texture_2d<f32>;
 @group(1) @binding(1) var<uniform> u_atlas_size: vec2<f32>;
@@ -13,12 +14,14 @@
 struct VertexInput {
     @location(0) a_pos: vec3<f32>,
     @location(1) a_atlas_uv: vec2<f32>,
-    @location(2) a_tile_uv: vec2<f32>,
-    @location(3) a_tile_size: vec2<f32>,
-    @location(4) a_scroll_rate: f32,
-    @location(5) a_row_height: f32,
-    @location(6) a_num_frames: i32,
-    @location(7) a_light: i32,
+    @location(2) a_atlas_uv_alt: vec2<f32>,
+    @location(3) a_tile_uv: vec2<f32>,
+    @location(4) a_tile_size: vec2<f32>,
+    @location(5) a_scroll_rate: f32,
+    @location(6) a_row_height: f32,
+    @location(7) a_num_frames: i32,
+    @location(8) a_light: i32,
+    @location(9) a_texture_alt_index: u32,
 }
 
 struct VertexOutput {
@@ -36,8 +39,14 @@ const ANIM_FPS: f32 = 8.0 / 35.0;
 fn main_vs(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.v_tile_uv = in.a_tile_uv + vec2(u_time * in.a_scroll_rate, 0.0);
+    var atlas_uv: vec2<f32>;
+    if u_texture_alt[in.a_texture_alt_index] == 0 {
+        atlas_uv = in.a_atlas_uv;
+    } else {
+        atlas_uv = in.a_atlas_uv_alt;
+    };
     if in.a_num_frames == 1 {
-        out.v_atlas_uv = in.a_atlas_uv;
+        out.v_atlas_uv = atlas_uv;
     } else {
         let frame_index = floor((u_time / ANIM_FPS) % f32(in.a_num_frames));
 

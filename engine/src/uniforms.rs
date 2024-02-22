@@ -249,6 +249,7 @@ impl Uniforms {
         device: &wgpu::Device,
         shaders: &Shaders,
         lights_buffer: &wgpu::Buffer,
+        texture_alt_buffer: &wgpu::Buffer,
         palette: &wgpu::Texture,
     ) {
         let atlas_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -299,6 +300,10 @@ impl Uniforms {
                 wgpu::BindGroupEntry {
                     binding: 5,
                     resource: wgpu::BindingResource::Sampler(&palette_sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: texture_alt_buffer.as_entire_binding(),
                 },
             ],
         }))

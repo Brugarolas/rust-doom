@@ -10,12 +10,14 @@ use wgpu::VertexAttribute;
 pub struct StaticVertex {
     pub a_pos: [f32; 3],
     pub a_atlas_uv: [f32; 2],
+    pub a_atlas_uv_alt: [f32; 2],
     pub a_tile_uv: [f32; 2],
     pub a_tile_size: [f32; 2],
     pub a_scroll_rate: f32,
     pub a_row_height: f32,
     pub a_num_frames: i32,
     pub a_light: i32,
+    pub a_texture_alt_index: u32,
 }
 
 impl ShaderVertex for StaticVertex {
@@ -38,33 +40,43 @@ impl ShaderVertex for StaticVertex {
                     },
                     wgpu::VertexAttribute {
                         format: wgpu::VertexFormat::Float32x2,
-                        offset: offset_of!(StaticVertex, a_tile_uv) as u64,
+                        offset: offset_of!(StaticVertex, a_atlas_uv_alt) as u64,
                         shader_location: 2,
                     },
                     wgpu::VertexAttribute {
                         format: wgpu::VertexFormat::Float32x2,
-                        offset: offset_of!(StaticVertex, a_tile_size) as u64,
+                        offset: offset_of!(StaticVertex, a_tile_uv) as u64,
                         shader_location: 3,
                     },
                     wgpu::VertexAttribute {
-                        format: wgpu::VertexFormat::Float32,
-                        offset: offset_of!(StaticVertex, a_scroll_rate) as u64,
+                        format: wgpu::VertexFormat::Float32x2,
+                        offset: offset_of!(StaticVertex, a_tile_size) as u64,
                         shader_location: 4,
                     },
                     wgpu::VertexAttribute {
                         format: wgpu::VertexFormat::Float32,
-                        offset: offset_of!(StaticVertex, a_row_height) as u64,
+                        offset: offset_of!(StaticVertex, a_scroll_rate) as u64,
                         shader_location: 5,
                     },
                     wgpu::VertexAttribute {
-                        format: wgpu::VertexFormat::Sint32,
-                        offset: offset_of!(StaticVertex, a_num_frames) as u64,
+                        format: wgpu::VertexFormat::Float32,
+                        offset: offset_of!(StaticVertex, a_row_height) as u64,
                         shader_location: 6,
                     },
                     wgpu::VertexAttribute {
                         format: wgpu::VertexFormat::Sint32,
-                        offset: offset_of!(StaticVertex, a_light) as u64,
+                        offset: offset_of!(StaticVertex, a_num_frames) as u64,
                         shader_location: 7,
+                    },
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Sint32,
+                        offset: offset_of!(StaticVertex, a_light) as u64,
+                        shader_location: 8,
+                    },
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Uint32,
+                        offset: offset_of!(StaticVertex, a_texture_alt_index) as u64,
+                        shader_location: 9,
                     },
                 ]
             }),
