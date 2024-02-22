@@ -1,7 +1,7 @@
 use super::system::InfallibleSystem;
 use super::tick::Tick;
 use idcontain::{Id, IdSlab};
-use log::info;
+use log::debug;
 use std::borrow::Cow;
 use std::fmt::Write;
 use std::mem;
@@ -110,8 +110,8 @@ impl FrameTimers {
                 seconds_since_logged / times_since_logged * 1000.
             );
         }
-        info!("Frame timer summary:{}", self.log_buffer);
-        info!(
+        debug!("Frame timer summary:{}", self.log_buffer);
+        debug!(
             "Drift summary: n={}, min={:.2}ms mean={:.2}ms max={:.2}ms",
             self.num_ticks,
             self.drift_min * 1e3,
@@ -123,7 +123,7 @@ impl FrameTimers {
         self.drift_mean = 0.0;
         self.num_ticks = 0.0;
 
-        info!(
+        debug!(
             "Sleep summary: n={}, min={:.2}ms mean={:.2}ms max={:.2}ms",
             self.num_slept,
             self.slept_min * 1e3,
