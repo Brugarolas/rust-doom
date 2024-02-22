@@ -15,7 +15,7 @@ use vec_map::VecMap;
 use wad::tex::Bounds as WadBounds;
 use wad::{
     Decor, ExitEffectDef, LevelVisitor, LightInfo, Marker, MoveEffect, ObjectId, SkyPoly, SkyQuad,
-    StaticPoly, StaticQuad, TeleportEffect, Trigger, TriggerType,
+    StaticPoly, StaticQuad, SwitchEffect, TeleportEffect, Trigger, TriggerType,
 };
 
 pub struct Level {
@@ -25,6 +25,7 @@ pub struct Level {
     removed: Vec<usize>,
     effects: VecMap<MoveEffect>,
     teleport_effect: Option<TeleportEffect>,
+    switch_effect: Option<SwitchEffect>,
     exit_trigger: Option<ExitEffectDef>,
     level_changed: bool,
 
@@ -161,6 +162,10 @@ impl Level {
                     self.teleport_effect = Some(teleport_effect.clone());
                 }
 
+                if let Some(switch_effect) = trigger.switch_effect.as_ref() {
+                    self.switch_effect = Some(switch_effect.clone());
+                }
+
                 if trigger.unimplemented {
                     error!("Unimpemented trigger: {}", trigger.special_type);
                 }
@@ -275,6 +280,36 @@ impl<'context> System<'context> for Level {
                 debug!("Effect {}: done, removing.", i_effect);
                 self.removed.push(i_effect);
                 break;
+            }
+        }
+
+        if let Some(switch_effect) = self.switch_effect.take() {
+            let sidedef = &mut deps.wad.level.sidedefs[switch_effect.sidedef as usize];
+            for current_texture in [
+                &mut sidedef.lower_texture,
+                &mut sidedef.middle_texture,
+                &mut sidedef.upper_texture,
+            ] {
+                // TODO: This doesn't work: by this point, the mesh containing
+                // the texture coordinates has already been created from these
+                // data and loaded into the GPU. Somehow the mesh needs to be
+                // recreated and reloaded when the texture changes.
+                //
+                // Probably the level can just be rebuilt entirely, even though
+                // that's a lot of work.
+                if *current_texture == switch_effect.texture_off {
+                    debug!(
+                        "Switching {current_texture:?} to {:?}",
+                        switch_effect.texture_on
+                    );
+                    *current_texture = switch_effect.texture_on
+                } else if *current_texture == switch_effect.texture_on {
+                    debug!(
+                        "Switching {current_texture:?} to {:?}",
+                        switch_effect.texture_off
+                    );
+                    *current_texture = switch_effect.texture_off
+                }
             }
         }
 
@@ -572,6 +607,7 @@ impl<'a> Builder<'a> {
             removed: Vec::with_capacity(128),
             effects: VecMap::new(),
             teleport_effect: None,
+            switch_effect: None,
             start_pos: builder.start_pos,
             start_yaw: builder.start_yaw,
             lights: builder.lights,

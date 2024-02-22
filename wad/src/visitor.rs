@@ -1,3 +1,5 @@
+use crate::types::SidedefId;
+
 use super::level::{Level, NeighbourHeights};
 use super::light::{self, Contrast, LightInfo};
 use super::meta::{
@@ -18,6 +20,7 @@ use math::prelude::*;
 use math::{Deg, Line2f, Pnt2f, Pnt3f, Radf, Vec2f};
 use std::cmp;
 use std::cmp::Ordering;
+use std::collections::HashSet;
 use std::f32::EPSILON;
 use std::mem;
 use vec_map::VecMap;
@@ -277,6 +280,13 @@ pub struct TeleportEffect {
     pub target_height: i16,
 }
 
+#[derive(Debug, Clone)]
+pub struct SwitchEffect {
+    pub sidedef: SidedefId,
+    pub texture_on: WadName,
+    pub texture_off: WadName,
+}
+
 impl HeightDef {
     fn to_height(self, sector: &WadSector, heights: &NeighbourHeights) -> Option<WadCoord> {
         let base = match self.to {
@@ -319,6 +329,7 @@ pub struct Trigger {
     pub exit_effect: Option<ExitEffectDef>,
     pub move_effects: Vec<MoveEffect>,
     pub teleport_effect: Option<TeleportEffect>,
+    pub switch_effect: Option<SwitchEffect>,
 }
 
 pub struct LevelAnalysis {
@@ -473,37 +484,46 @@ impl LevelAnalysis {
             }
         };
 
-        Some(if let Some(meta) = meta.linedef.get(&special_type) {
-            let teleport_effect = Self::teleport_effect(meta, linedef, level);
-            Trigger {
-                trigger_type: meta.trigger,
+        Some(
+            if let Some(linedef_meta) = meta.linedef.get(&special_type) {
+                let teleport_effect = Self::teleport_effect(linedef_meta, linedef, level);
+                let switch_effect = if matches!(linedef_meta.trigger, TriggerType::Switch) {
+                    Self::switch_effect(level, meta, linedef)
+                } else {
+                    None
+                };
+                Trigger {
+                    trigger_type: linedef_meta.trigger,
 
-                only_once: meta.only_once,
-                move_effect_def: meta.move_effect,
-                exit_effect: meta.exit_effect,
-                unimplemented: false,
-                special_type,
+                    only_once: linedef_meta.only_once,
+                    move_effect_def: linedef_meta.move_effect,
+                    exit_effect: linedef_meta.exit_effect,
+                    unimplemented: false,
+                    special_type,
 
-                line,
-                move_effects: Vec::new(),
-                teleport_effect,
-            }
-        } else {
-            error!("Unknown linedef special type: {}", special_type);
-            Trigger {
-                trigger_type: TriggerType::Any,
+                    line,
+                    move_effects: Vec::new(),
+                    teleport_effect,
+                    switch_effect,
+                }
+            } else {
+                error!("Unknown linedef special type: {}", special_type);
+                Trigger {
+                    trigger_type: TriggerType::Any,
 
-                only_once: false,
-                move_effect_def: None,
-                exit_effect: None,
-                unimplemented: true,
-                special_type,
+                    only_once: false,
+                    move_effect_def: None,
+                    exit_effect: None,
+                    unimplemented: true,
+                    special_type,
 
-                line,
-                move_effects: Vec::new(),
-                teleport_effect: None,
-            }
-        })
+                    line,
+                    move_effects: Vec::new(),
+                    teleport_effect: None,
+                    switch_effect: None,
+                }
+            },
+        )
     }
 
     fn teleport_effect(
@@ -542,6 +562,37 @@ impl LevelAnalysis {
         } else {
             None
         }
+    }
+
+    fn switch_effect(
+        level: &Level,
+        meta: &WadMetadata,
+        linedef: &WadLinedef,
+    ) -> Option<SwitchEffect> {
+        let Some(sidedef) = level.right_sidedef(linedef) else {
+            warn!("Missing sidedef for linedef");
+            return None;
+        };
+        let all_textures = HashSet::from([
+            sidedef.lower_texture,
+            sidedef.middle_texture,
+            sidedef.upper_texture,
+        ]);
+        let Some(switch_meta) = meta.switches.iter().find(|s| {
+            all_textures
+                .intersection(&HashSet::from([s.off_texture, s.on_texture]))
+                .count()
+                > 0
+        }) else {
+            warn!("No metadata found for sidedef {sidedef:?}");
+            return None;
+        };
+        debug!("Found metadata {:?}", switch_meta);
+        Some(SwitchEffect {
+            sidedef: linedef.right_side,
+            texture_on: switch_meta.on_texture,
+            texture_off: switch_meta.off_texture,
+        })
     }
 }
 

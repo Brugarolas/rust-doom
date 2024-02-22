@@ -23,5 +23,5 @@ pub use self::name::WadName;
 pub use self::tex::{OpaqueImage, TextureDirectory, TransparentImage};
 pub use self::visitor::{
     Branch, Decor, LevelAnalysis, LevelVisitor, LevelWalker, Marker, MoveEffect, ObjectId, SkyPoly,
-    SkyQuad, StaticPoly, StaticQuad, TeleportEffect, Trigger,
+    SkyQuad, StaticPoly, StaticQuad, SwitchEffect, TeleportEffect, Trigger,
 };

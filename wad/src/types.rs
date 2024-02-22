@@ -94,7 +94,7 @@ impl WadLinedef {
     }
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Debug, Copy, Clone, Deserialize)]
 pub struct WadSidedef {
     pub x_offset: WadCoord,
     pub y_offset: WadCoord,
