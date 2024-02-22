@@ -31,7 +31,7 @@ pub struct Level {
     pub subsectors: Vec<WadSubsector>,
     pub nodes: Vec<WadNode>,
     pub sectors: Vec<WadSector>,
-    pub things_by_sector: HashMap<usize, HashSet<usize>>,
+    pub things_by_sector: HashMap<usize, Vec<usize>>,
 }
 
 impl Level {
@@ -224,7 +224,7 @@ impl Level {
         sidedefs: &[WadSidedef],
         sectors: &[WadSector],
         vertices: &[WadVertex],
-    ) -> HashMap<usize, HashSet<usize>> {
+    ) -> HashMap<usize, Vec<usize>> {
         let mut result = HashMap::default();
         for (sector_index, sector) in sectors.iter().enumerate() {
             if sector.tag == 0 {
