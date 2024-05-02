@@ -68,6 +68,7 @@ impl Shaders {
                     module: &shader_module,
                     entry_point: "main_vs",
                     buffers: &[VertexT::desc()],
+                    compilation_options: Default::default(),
                 },
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -98,6 +99,7 @@ impl Shaders {
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::all(),
                     })],
+                    compilation_options: Default::default(),
                 }),
                 multiview: None,
             });

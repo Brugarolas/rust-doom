@@ -305,6 +305,7 @@ impl<'context> System<'context> for TextRenderer {
                     module: &shader_module,
                     entry_point: "main_vs",
                     buffers: &[TextVertex::desc()],
+                    compilation_options: Default::default(),
                 },
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleStrip,
@@ -329,6 +330,7 @@ impl<'context> System<'context> for TextRenderer {
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::all(),
                     })],
+                    compilation_options: Default::default(),
                 }),
                 multiview: None,
             });
