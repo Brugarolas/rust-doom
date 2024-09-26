@@ -333,6 +333,7 @@ impl<'context> System<'context> for TextRenderer {
                     compilation_options: Default::default(),
                 }),
                 multiview: None,
+                cache: None,
             });
         Ok(Self {
             font: Font::try_from_vec_and_index(font_bytes, 0)

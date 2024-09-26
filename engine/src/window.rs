@@ -6,7 +6,7 @@ use super::errors::{Error, Result};
 use super::system::System;
 use failchain::BoxedError;
 use winit::event_loop::EventLoop;
-use winit::window::WindowBuilder;
+use winit::window::WindowAttributes;
 
 pub struct WindowConfig {
     pub width: u32,
@@ -81,11 +81,13 @@ impl<'context> System<'context> for Window {
         let events = EventLoop::new().map_err(|e| ErrorKind::CreateWindow(e.to_string()))?;
 
         let window = Arc::new(
-            WindowBuilder::new()
-                .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
-                .with_title(&config.title)
-                .build(&events)
-                .map_err(|e| ErrorKind::CreateWindow(e.to_string()))?,
+            events
+                .create_window(
+                    WindowAttributes::new()
+                        .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
+                        .with_title(&config.title),
+                )
+                .map_err(|e| ErrorKind::CreateWindow(format!("{e}")))?,
         );
 
         window
@@ -149,6 +151,7 @@ async fn create_device(
                 label: None,
                 required_features: wgpu::Features::empty(),
                 required_limits: wgpu::Limits::default(),
+                memory_hints: Default::default(),
             },
             None,
         )

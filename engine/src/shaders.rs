@@ -102,6 +102,7 @@ impl Shaders {
                     compilation_options: Default::default(),
                 }),
                 multiview: None,
+                cache: None,
             });
 
         debug!("Shader {:?} loaded successfully", name);
