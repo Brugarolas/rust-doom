@@ -4,6 +4,9 @@ name = "engine"
 version = "0.1.0"
 edition = "2018"
 
+[features]
+cargo-clippy = []
+
 [dependencies]
 math = { path = "../math" }
 engine_derive = { path = "../engine_derive" }

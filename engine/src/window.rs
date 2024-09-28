@@ -6,7 +6,6 @@ use super::errors::{Error, Result};
 use super::system::System;
 use failchain::BoxedError;
 use winit::event_loop::EventLoop;
-use winit::window::WindowAttributes;
 
 pub struct WindowConfig {
     pub width: u32,
@@ -83,7 +82,7 @@ impl<'context> System<'context> for Window {
         let window = Arc::new(
             events
                 .create_window(
-                    WindowAttributes::new()
+                    winit::window::Window::default_attributes()
                         .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
                         .with_title(&config.title),
                 )

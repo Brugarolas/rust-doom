@@ -62,5 +62,3 @@ pub enum ErrorKind {
 impl ChainErrorKind for ErrorKind {
     type Error = Error;
 }
-
-pub(crate) trait UnsupportedFeature: Fail + Sized {}

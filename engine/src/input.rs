@@ -87,7 +87,7 @@ impl Input {
             } => {
                 self.keyboard_state[virtual_keycode as usize] = match state {
                     ElementState::Pressed => ButtonState::Down(self.current_update_index),
-                    ElementState::Released => ButtonState::Up(self.current_update_index),
+                    ElementState::Released => ButtonState::Up,
                 }
             }
             Event::DeviceEvent {
@@ -107,7 +107,7 @@ impl Input {
                 if self.mouse_enabled && button < NUM_MOUSE_BUTTONS {
                     self.mouse_button_state[button] = match state {
                         ElementState::Pressed => ButtonState::Down(self.current_update_index),
-                        ElementState::Released => ButtonState::Up(self.current_update_index),
+                        ElementState::Released => ButtonState::Up,
                     }
                 }
             }
@@ -129,22 +129,22 @@ impl Input {
             Gesture::QuitTrigger => self.quit_requested_index == self.current_update_index,
             Gesture::KeyHold(code) => match self.keyboard_state[code as usize] {
                 ButtonState::Down(_) => true,
-                ButtonState::Up(_) => false,
+                ButtonState::Up => false,
             },
             Gesture::KeyTrigger(code) => match self.keyboard_state[code as usize] {
                 ButtonState::Down(index) => self.current_update_index == index,
-                ButtonState::Up(_) => false,
+                ButtonState::Up => false,
             },
             Gesture::ButtonHold(button) => {
                 match self.mouse_button_state[mouse_button_to_index(button)] {
                     ButtonState::Down(_) => true,
-                    ButtonState::Up(_) => false,
+                    ButtonState::Up => false,
                 }
             }
             Gesture::ButtonTrigger(button) => {
                 match self.mouse_button_state[mouse_button_to_index(button)] {
                     ButtonState::Down(index) => self.current_update_index == index,
-                    ButtonState::Up(_) => false,
+                    ButtonState::Up => false,
                 }
             }
             Gesture::AnyOf(ref subgestures) => subgestures
@@ -217,8 +217,8 @@ impl<'context> System<'context> for Input {
     fn create(_deps: Dependencies) -> Result<Self> {
         Ok(Input {
             current_update_index: 1,
-            keyboard_state: [ButtonState::Up(0); NUM_SCAN_CODES],
-            mouse_button_state: [ButtonState::Up(0); NUM_MOUSE_BUTTONS],
+            keyboard_state: [ButtonState::Up; NUM_SCAN_CODES],
+            mouse_button_state: [ButtonState::Up; NUM_MOUSE_BUTTONS],
             quit_requested_index: 0,
             new_step: false,
             mouse_enabled: true,
@@ -256,7 +256,7 @@ type UpdateIndex = u32;
 
 #[derive(Copy, Clone)]
 enum ButtonState {
-    Up(UpdateIndex),
+    Up,
     Down(UpdateIndex),
 }
 
