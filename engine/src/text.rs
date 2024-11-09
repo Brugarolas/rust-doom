@@ -303,7 +303,7 @@ impl<'context> System<'context> for TextRenderer {
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader_module,
-                    entry_point: "main_vs",
+                    entry_point: Some("main_vs"),
                     buffers: &[TextVertex::desc()],
                     compilation_options: Default::default(),
                 },
@@ -324,7 +324,7 @@ impl<'context> System<'context> for TextRenderer {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader_module,
-                    entry_point: "main_fs",
+                    entry_point: Some("main_fs"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: window.texture_format(),
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),

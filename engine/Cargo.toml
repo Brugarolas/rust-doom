@@ -18,7 +18,7 @@ unicode-normalization = "0.1.24"
 failure = "0.1.8"
 failchain = "0.1018.2"
 winit = "0.30.5"
-wgpu = "22.1.0"
+wgpu = "23.0.0"
 bytemuck = { version = "1.14.0", features = ["derive"] }
 futures = "0.3.30"
 tobj = "4.0.0"

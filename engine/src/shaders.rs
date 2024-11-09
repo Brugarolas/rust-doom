@@ -66,7 +66,7 @@ impl Shaders {
                 layout: Some(&pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &shader_module,
-                    entry_point: "main_vs",
+                    entry_point: Some("main_vs"),
                     buffers: &[VertexT::desc()],
                     compilation_options: Default::default(),
                 },
@@ -93,7 +93,7 @@ impl Shaders {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader_module,
-                    entry_point: "main_fs",
+                    entry_point: Some("main_fs"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: window.texture_format(),
                         blend: Some(wgpu::BlendState::REPLACE),
