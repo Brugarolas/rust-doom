@@ -99,15 +99,13 @@ impl<'context> System<'context> for Window {
             .map_err(|_| ErrorKind::Context("Could not create surface"))?;
         let (device, adapter, queue) = pollster::block_on(create_device(instance, &surface))
             .map_err(|_| ErrorKind::Context("Could not create WGPU device"))?;
-        let configuration = surface
-            .get_default_config(
-                &adapter,
-                window.inner_size().width,
-                window.inner_size().height,
-            )
-            .ok_or(ErrorKind::Context(
-                "Could not get default surface configuration",
-            ))?;
+        let (width, height) = (window.inner_size().width, window.inner_size().height);
+        let configuration =
+            surface
+                .get_default_config(&adapter, width, height)
+                .ok_or(ErrorKind::Context(
+                    "Could not get default surface configuration",
+                ))?;
         surface.configure(&device, &configuration);
 
         Ok(Window {
@@ -117,8 +115,8 @@ impl<'context> System<'context> for Window {
             texture_format: configuration.format,
             window,
             event_loop: Some(events),
-            width: config.width,
-            height: config.height,
+            width,
+            height,
         })
     }
 
