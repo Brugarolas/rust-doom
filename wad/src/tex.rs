@@ -422,7 +422,7 @@ fn ordered_atlas_entries<'a, N, I, L>(
     animations: &'a [Vec<WadName>],
     image_lookup: L,
     names_iter: N,
-) -> Vec<AtlasEntry<I>>
+) -> Vec<AtlasEntry<'a, I>>
 where
     N: IntoIterator<Item = WadName>,
     L: Fn(WadName) -> Option<&'a I>,
