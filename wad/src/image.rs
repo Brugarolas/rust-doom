@@ -1,7 +1,7 @@
 use super::errors::{ErrorKind, Result};
 use super::types::WadTextureHeader;
+use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt};
-use failchain::{ensure, ResultExt};
 use log::{debug, warn};
 use math::Vec2;
 use std::vec::Vec;
@@ -18,10 +18,9 @@ pub struct Image {
 
 impl Image {
     pub fn new(width: usize, height: usize) -> Result<Self> {
-        ensure!(
-            width <= MAX_IMAGE_SIZE && height <= MAX_IMAGE_SIZE,
-            ErrorKind::image_too_large(width, height),
-        );
+        if width > MAX_IMAGE_SIZE || height > MAX_IMAGE_SIZE {
+            return Err(ErrorKind::image_too_large(width, height));
+        }
         Ok(Self {
             width,
             height,
@@ -40,24 +39,23 @@ impl Image {
         let mut reader = buffer;
         let width = reader
             .read_u16::<LittleEndian>()
-            .chain_err(|| ErrorKind::CorruptWad("Image missing width.".to_owned()))?
+            .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing width.")))?
             as usize;
         let height = reader
             .read_u16::<LittleEndian>()
-            .chain_err(|| ErrorKind::CorruptWad("Image missing height.".to_owned()))?
+            .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing height.")))?
             as usize;
-        ensure!(
-            width <= MAX_IMAGE_SIZE && height <= MAX_IMAGE_SIZE,
-            ErrorKind::image_too_large(width, height),
-        );
+        if width > MAX_IMAGE_SIZE || height > MAX_IMAGE_SIZE {
+            return Err(ErrorKind::image_too_large(width, height));
+        }
 
         let x_offset = reader
             .read_i16::<LittleEndian>()
-            .chain_err(|| ErrorKind::CorruptWad("Image missing x offset".to_owned()))?
+            .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing x offset")))?
             as isize;
         let y_offset = reader
             .read_i16::<LittleEndian>()
-            .chain_err(|| ErrorKind::CorruptWad("Image missing y offset".to_owned()))?
+            .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing y offset")))?
             as isize;
 
         let mut pixels = vec![!0; width * height];
@@ -68,16 +66,14 @@ impl Image {
             // defined starting at `offset' in the buffer.
             let offset = reader
                 .read_u32::<LittleEndian>()
-                .chain_err(|| ErrorKind::unfinished_image_column(i_column, None, width, height))?
+                .map_err(|_| ErrorKind::unfinished_image_column(i_column, None, width, height))?
                 as isize;
-            ensure!(
-                offset < buffer.len() as isize,
-                ErrorKind::CorruptWad,
-                "Invalid image column offset in {}, offset={}, size={}.",
-                i_column,
-                offset,
-                buffer.len()
-            );
+            if offset >= buffer.len() as isize {
+                return Err(ErrorKind::CorruptWad(anyhow!(
+                    "Invalid image column offset in {i_column}, offset={offset}, size={}.",
+                    buffer.len()
+                )));
+            }
             let mut source = buffer[offset as usize..].iter();
             let mut i_run = 0;
             loop {
@@ -96,33 +92,24 @@ impl Image {
                 // The second byte is the length of this run. Skip an additional
                 // byte which is ignored for some reason.
                 let run_length = *source.next().ok_or_else(|| {
-                    ErrorKind::CorruptWad(format!(
-                        "Missing image run length: column {}, run {}",
-                        i_column, i_run
+                    ErrorKind::CorruptWad(anyhow!(
+                        "Missing image run length: column {i_column}, run {i_run}",
                     ))
                 })? as usize;
 
                 // Check that the run fits in the image.
-                ensure!(
-                    row_start + run_length <= height,
-                    ErrorKind::CorruptWad,
-                    "Image run too big: column {}, run {} ({} +{}), size {}x{}",
-                    i_column,
-                    i_run,
-                    row_start,
-                    run_length,
-                    width,
-                    height,
-                );
+                if row_start + run_length > height {
+                    return Err(ErrorKind::CorruptWad(anyhow!(
+                        "Image run too big: column {i_column}, run {i_run} ({row_start} +{run_length}), size {width}x{height}",
+                    )));
+                }
 
                 // An ignored padding byte.
-                ensure!(
-                    source.next().is_some(),
-                    ErrorKind::CorruptWad,
-                    "Image missing padding byte 1: column {}, run {}",
-                    i_column,
-                    i_run
-                );
+                if source.next().is_none() {
+                    return Err(ErrorKind::CorruptWad(anyhow!(
+                        "Image missing padding byte 1: column {i_column}, run {i_run}",
+                    )));
+                }
 
                 // Iterator to the beginning of the run in `pixels`. Guaranteed to be in bounds
                 // by the check above.
@@ -133,28 +120,22 @@ impl Image {
 
                 // Copy the bytes from source to destination, but first check there's enough of
                 // those left.
-                ensure!(
-                    source.size_hint().0 >= run_length,
-                    ErrorKind::CorruptWad,
-                    "Image source underrun: column {}, run {} ({}, +{}), bytes left {}",
-                    i_column,
-                    i_run,
-                    row_start,
-                    run_length,
-                    source.size_hint().0
-                );
+                if source.size_hint().0 < run_length {
+                    return Err(ErrorKind::CorruptWad(anyhow!(
+                        "Image source underrun: column {i_column}, run {i_run} ({row_start}, +{run_length}), bytes left {}",
+                        source.size_hint().0
+                    )));
+                }
                 for dest_pixel in &mut destination {
                     *dest_pixel = u16::from(*source.next().expect("missing pixel despite check"));
                 }
 
                 // And another ignored byte after the run.
-                ensure!(
-                    source.next().is_some(),
-                    ErrorKind::CorruptWad,
-                    "Image missing padding byte 2: column {}, run {}",
-                    i_column,
-                    i_run
-                );
+                if source.next().is_none() {
+                    return Err(ErrorKind::CorruptWad(anyhow!(
+                        "Image missing padding byte 2: column {i_column}, run {i_run}",
+                    )));
+                }
                 i_run += 1;
             }
         }

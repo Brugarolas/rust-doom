@@ -1,7 +1,7 @@
 use super::errors::{ErrorKind, Result};
 use super::name::WadName;
 use super::types::{SpecialType, ThingType, WadCoord};
-use failchain::ResultExt;
+use anyhow::Context;
 use indexmap::IndexMap;
 use log::{error, warn};
 use regex::Regex;
@@ -165,12 +165,15 @@ impl WadMetadata {
         let path = path.as_ref();
         File::open(path)
             .and_then(|mut file| file.read_to_string(&mut contents))
-            .chain_err(ErrorKind::on_metadata_read)?;
+            .context("Failed to load metadata to memory")
+            .map_err(ErrorKind::Io)?;
         WadMetadata::from_text(&contents)
     }
 
     pub fn from_text(text: &str) -> Result<WadMetadata> {
-        toml::from_str(text).chain_err(ErrorKind::on_metadata_parse)
+        toml::from_str(text)
+            .context("Failed to parse metadata file")
+            .map_err(ErrorKind::CorruptMetadata)
     }
 
     pub fn sky_for(&self, name: WadName) -> Option<&SkyMetadata> {

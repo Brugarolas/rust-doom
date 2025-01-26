@@ -76,7 +76,7 @@ impl WadName {
 }
 
 impl FromStr for WadName {
-    type Err = super::errors::Error;
+    type Err = super::errors::ErrorKind;
     fn from_str(value: &str) -> Result<WadName> {
         WadName::from_bytes(value.as_bytes())
     }
