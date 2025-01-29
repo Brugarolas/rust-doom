@@ -1,10 +1,9 @@
-use crate::types::SidedefId;
-
 use super::archive::Archive;
-use super::errors::Result;
 use super::types::{LightLevel, SectorId, VertexId, WadNode, WadSector};
 use super::types::{WadCoord, WadLinedef, WadSeg, WadSidedef, WadSubsector, WadThing, WadVertex};
 use super::util::from_wad_coords;
+use crate::types::SidedefId;
+use anyhow::Result;
 use geo::{coord, point, Contains, Polygon};
 use log::{debug, error, info, warn};
 use math::Pnt2f;

@@ -1,7 +1,7 @@
-use super::errors::{ErrorKind, Result};
+use super::errors::ErrorKind;
 use super::name::WadName;
 use super::types::{SpecialType, ThingType, WadCoord};
-use anyhow::Context;
+use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use log::{error, warn};
 use regex::Regex;
@@ -171,9 +171,7 @@ impl WadMetadata {
     }
 
     pub fn from_text(text: &str) -> Result<WadMetadata> {
-        toml::from_str(text)
-            .context("Failed to parse metadata file")
-            .map_err(ErrorKind::CorruptMetadata)
+        toml::from_str(text).context("Corrupt metadata file")
     }
 
     pub fn sky_for(&self, name: WadName) -> Option<&SkyMetadata> {

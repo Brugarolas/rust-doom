@@ -1,5 +1,4 @@
-use super::errors::{ErrorKind, Result};
-use failchain::{bail, ensure};
+use anyhow::{bail, Result};
 use serde::de::{Deserialize, Deserializer, Error as SerdeDeError};
 use std::borrow::Borrow;
 use std::fmt;
@@ -24,7 +23,7 @@ impl WadName {
             | b @ b']'
             | b @ b'\\' => b,
             b => {
-                bail!(ErrorKind::invalid_byte_in_wad_name(b, &self.0));
+                bail!("Invalid character `{b}` in wad name `{:?}`.", self.0);
             }
         };
 
@@ -35,17 +34,16 @@ impl WadName {
             }
         }
 
-        bail!(ErrorKind::wad_name_too_long(&self.0));
+        bail!("Wad name too long `{:?}`.", self.0);
     }
 
     pub fn from_bytes(value: &[u8]) -> Result<WadName> {
         let mut name = [0u8; 8];
         let mut nulled = false;
         for (dest, &src) in name.iter_mut().zip(value.iter()) {
-            ensure!(
-                src.is_ascii(),
-                ErrorKind::invalid_byte_in_wad_name(src, value)
-            );
+            if !src.is_ascii() {
+                bail!("Invalid character `{src}` in wad name `{value:?}`.");
+            }
 
             let new_byte = match src.to_ascii_uppercase() {
                 b @ b'A'..=b'Z'
@@ -61,22 +59,21 @@ impl WadName {
                     break;
                 }
                 b => {
-                    bail!(ErrorKind::invalid_byte_in_wad_name(b, value));
+                    bail!("Invalid character `{b}` in wad name `{value:?}`.");
                 }
             };
             *dest = new_byte;
         }
 
-        ensure!(
-            nulled || value.len() <= 8,
-            ErrorKind::wad_name_too_long(value)
-        );
+        if !nulled && value.len() > 8 {
+            bail!("Wad name too long `{value:?}`.");
+        }
         Ok(WadName(name))
     }
 }
 
 impl FromStr for WadName {
-    type Err = super::errors::ErrorKind;
+    type Err = anyhow::Error;
     fn from_str(value: &str) -> Result<WadName> {
         WadName::from_bytes(value.as_bytes())
     }

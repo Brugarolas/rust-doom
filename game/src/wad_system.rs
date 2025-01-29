@@ -3,8 +3,7 @@ use engine::{DependenciesFrom, System};
 use log::info;
 use std::path::PathBuf;
 use wad::{
-    Archive, Level as WadLevel, LevelAnalysis, LevelVisitor, LevelWalker, Result as WadResult,
-    TextureDirectory, WadName,
+    Archive, Level as WadLevel, LevelAnalysis, LevelVisitor, LevelWalker, TextureDirectory, WadName,
 };
 
 #[derive(Debug)]
@@ -68,7 +67,7 @@ impl<'context> System<'context> for WadSystem {
     }
 
     fn create(deps: Dependencies) -> Result<Self> {
-        let (archive, textures, level_index, level_name) = (|| -> WadResult<_> {
+        let (archive, textures, level_index, level_name) = (|| -> Result<_> {
             let archive = Archive::open(&deps.config.wad_path, &deps.config.metadata_path)?;
             let textures = TextureDirectory::from_archive(&archive)?;
             let level_index = deps.config.initial_level_index;

@@ -1,8 +1,8 @@
-use super::errors::{ErrorKind, Result};
+use super::errors::ErrorKind;
 use super::meta::WadMetadata;
 use super::name::IntoWadName;
 use super::types::{WadInfo, WadLump, WadName};
-use anyhow::Context;
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use log::info;
 use serde::de::DeserializeOwned;
@@ -72,7 +72,10 @@ impl Archive {
             .map_err(ErrorKind::CorruptWad)?;
 
         if header.identifier != IWAD_HEADER {
-            return Err(ErrorKind::bad_wad_header_identifier(&header.identifier));
+            bail!(
+                "Invalid header identifier: {}",
+                String::from_utf8_lossy(&header.identifier)
+            );
         }
 
         // Read lump info.
@@ -181,12 +184,13 @@ impl<'a> LumpReader<'a> {
             let num_elements = info.size / element_size;
 
             if info.size == 0 || (info.size % element_size != 0) {
-                return Err(ErrorKind::bad_lump_size(
-                    index,
-                    info.name.as_ref(),
-                    info.size,
-                    element_size,
-                ));
+                bail!(
+                    "Invalid lump size in `{name}` (index={index}): total={total_size}, element={element_size}, div={}, mod={}",
+                    info.size / element_size,
+                    info.size % element_size,
+                    name = info.name.as_ref(),
+                    total_size = info.size,
+                );
             }
             (0..num_elements)
                 .map(move |i_element| {
@@ -197,7 +201,7 @@ impl<'a> LumpReader<'a> {
                                 lump_name = info.name,
                             )
                         })
-                        .map_err(ErrorKind::CorruptWad)
+                        .context("Corrupt WAD file")
                 })
                 .collect::<Result<Vec<_>>>()
         })
@@ -209,12 +213,13 @@ impl<'a> LumpReader<'a> {
             let element_size = mem::size_of::<T>();
 
             if element_size == 0 || info.size != element_size {
-                return Err(ErrorKind::bad_lump_size(
-                    index,
-                    info.name.as_ref(),
-                    info.size,
-                    element_size,
-                ));
+                bail!(
+                    "Invalid lump size in `{name}` (index={index}): total={total_size}, element={element_size}, div={}, mod={}",
+                    info.size / element_size,
+                    info.size % element_size,
+                    name = info.name.as_ref(),
+                    total_size = info.size,
+                );
             }
             bincode::deserialize_from(file)
                 .with_context(|| {
@@ -223,7 +228,7 @@ impl<'a> LumpReader<'a> {
                         lump_name = info.name,
                     )
                 })
-                .map_err(ErrorKind::CorruptWad)
+                .context("Corrupt WAD file")
         })
     }
 
@@ -236,12 +241,13 @@ impl<'a> LumpReader<'a> {
             let blob_size = B::default().as_mut().len();
             assert!(blob_size > 0);
             if info.size == 0 || (info.size % blob_size) != 0 {
-                return Err(ErrorKind::bad_lump_size(
-                    index,
-                    info.name.as_ref(),
-                    info.size,
-                    blob_size,
-                ));
+                bail!(
+                    "Invalid lump size in `{name}` (index={index}): total={total_size}, element={blob_size}, div={}, mod={}",
+                    info.size / blob_size,
+                    info.size % blob_size,
+                    name = info.name.as_ref(),
+                    total_size = info.size,
+                );
             }
             let num_blobs = info.size / blob_size;
             let mut blobs = Vec::with_capacity(num_blobs);

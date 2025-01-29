@@ -11,7 +11,6 @@ mod vertex;
 mod wad_system;
 mod world;
 
-pub use self::errors::{Error, Result};
 pub use self::game::{create, Game, GameConfig};
 pub use self::level::Level;
 

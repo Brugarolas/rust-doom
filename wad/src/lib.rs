@@ -12,7 +12,6 @@ pub mod types;
 pub mod util;
 
 pub use self::archive::Archive;
-pub use self::errors::{ErrorKind, Result};
 pub use self::image::Image;
 pub use self::level::Level;
 pub use self::light::{LightEffect, LightEffectKind, LightInfo};

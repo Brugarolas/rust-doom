@@ -1,6 +1,6 @@
-use super::errors::{ErrorKind, Result};
+use super::errors::ErrorKind;
 use super::types::WadTextureHeader;
-use anyhow::anyhow;
+use anyhow::{anyhow, bail, Result};
 use byteorder::{LittleEndian, ReadBytesExt};
 use log::{debug, warn};
 use math::Vec2;
@@ -19,7 +19,7 @@ pub struct Image {
 impl Image {
     pub fn new(width: usize, height: usize) -> Result<Self> {
         if width > MAX_IMAGE_SIZE || height > MAX_IMAGE_SIZE {
-            return Err(ErrorKind::image_too_large(width, height));
+            bail!("Image too large {width}x{height}.");
         }
         Ok(Self {
             width,
@@ -46,7 +46,7 @@ impl Image {
             .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing height.")))?
             as usize;
         if width > MAX_IMAGE_SIZE || height > MAX_IMAGE_SIZE {
-            return Err(ErrorKind::image_too_large(width, height));
+            bail!("Image too large {width}x{height}.");
         }
 
         let x_offset = reader
@@ -69,10 +69,10 @@ impl Image {
                 .map_err(|_| ErrorKind::unfinished_image_column(i_column, None, width, height))?
                 as isize;
             if offset >= buffer.len() as isize {
-                return Err(ErrorKind::CorruptWad(anyhow!(
+                bail!(
                     "Invalid image column offset in {i_column}, offset={offset}, size={}.",
                     buffer.len()
-                )));
+                );
             }
             let mut source = buffer[offset as usize..].iter();
             let mut i_run = 0;
@@ -99,16 +99,14 @@ impl Image {
 
                 // Check that the run fits in the image.
                 if row_start + run_length > height {
-                    return Err(ErrorKind::CorruptWad(anyhow!(
-                        "Image run too big: column {i_column}, run {i_run} ({row_start} +{run_length}), size {width}x{height}",
-                    )));
+                    bail!(
+                        "Image run too big: column {i_column}, run {i_run} ({row_start} +{run_length}), size {width}x{height}"
+                    );
                 }
 
                 // An ignored padding byte.
                 if source.next().is_none() {
-                    return Err(ErrorKind::CorruptWad(anyhow!(
-                        "Image missing padding byte 1: column {i_column}, run {i_run}",
-                    )));
+                    bail!("Image missing padding byte 1: column {i_column}, run {i_run}");
                 }
 
                 // Iterator to the beginning of the run in `pixels`. Guaranteed to be in bounds
@@ -121,10 +119,10 @@ impl Image {
                 // Copy the bytes from source to destination, but first check there's enough of
                 // those left.
                 if source.size_hint().0 < run_length {
-                    return Err(ErrorKind::CorruptWad(anyhow!(
+                    bail!(
                         "Image source underrun: column {i_column}, run {i_run} ({row_start}, +{run_length}), bytes left {}",
                         source.size_hint().0
-                    )));
+                    );
                 }
                 for dest_pixel in &mut destination {
                     *dest_pixel = u16::from(*source.next().expect("missing pixel despite check"));
@@ -132,9 +130,7 @@ impl Image {
 
                 // And another ignored byte after the run.
                 if source.next().is_none() {
-                    return Err(ErrorKind::CorruptWad(anyhow!(
-                        "Image missing padding byte 2: column {i_column}, run {i_run}",
-                    )));
+                    bail!("Image missing padding byte 2: column {i_column}, run {i_run}");
                 }
                 i_run += 1;
             }

@@ -1,9 +1,8 @@
 use super::archive::Archive;
-use super::errors::{ErrorKind, Result};
 use super::image::Image;
 use super::name::WadName;
 use super::types::{Colormap, Palette, WadTextureHeader, WadTexturePatchRef};
-use anyhow::{anyhow, Context};
+use anyhow::{bail, Context, Result};
 use byteorder::{LittleEndian, ReadBytesExt};
 use indexmap::IndexMap;
 use log::{error, info};
@@ -362,7 +361,7 @@ fn read_patches(wad: &Archive) -> Result<Vec<(WadName, Option<Image>)>> {
     let num_patches = lump
         .read_u32::<LittleEndian>()
         .context("Missing number of patches in PNAMES")
-        .map_err(ErrorKind::CorruptWad)? as usize;
+        .context("Corrupt WAD file")? as usize;
     let mut patches = Vec::with_capacity(num_patches);
 
     patches.reserve(num_patches);
@@ -505,15 +504,14 @@ fn read_textures(
     let num_textures = lump
         .read_u32::<LittleEndian>()
         .context("Misisng number of textures.")
-        .map_err(ErrorKind::CorruptWad)? as usize;
+        .context("Corrupt WAD file")? as usize;
 
     let offsets_end = num_textures * mem::size_of::<u32>();
     if offsets_end >= lump.len() {
-        return Err(ErrorKind::CorruptWad(anyhow!(
-            "Textures lump too small for offsets {} < {}",
+        bail!(
+            "Textures lump too small for offsets {} < {offsets_end}",
             lump.len(),
-            offsets_end,
-        )));
+        );
     }
     let mut offsets = &lump[..offsets_end];
 
@@ -523,11 +521,10 @@ fn read_textures(
             .expect("could not read from size-checked offset buffer in texture lump")
             as usize;
         if offset >= lump_buffer.len() {
-            return Err(ErrorKind::CorruptWad(anyhow!(
-                "Textures lump too small for offsets {} < {}",
+            bail!(
+                "Textures lump too small for offsets {} < {offsets_end}",
                 lump.len(),
-                offsets_end
-            )));
+            );
         }
 
         lump = &lump_buffer[offset..];
