@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use crate::vertex::{SkyVertex, SpriteVertex, StaticVertex};
 
 use super::wad_system::WadSystem;
+use anyhow::Result;
 use engine::{
-    DependenciesFrom, Entities, EntityId, Error, FloatUniformId, MaterialId, Materials, Result,
-    ShaderId, ShaderVertex, Shaders, System, Tick, Uniforms, Window, LIGHTS_COUNT,
+    DependenciesFrom, Entities, EntityId, FloatUniformId, MaterialId, Materials, ShaderId,
+    ShaderVertex, Shaders, System, Tick, Uniforms, Window, LIGHTS_COUNT,
 };
 use log::{error, info};
 use math::Vec2;
@@ -58,7 +59,6 @@ pub struct Dependencies<'context> {
 
 impl<'context> System<'context> for GameShaders {
     type Dependencies = Dependencies<'context>;
-    type Error = Error;
 
     fn debug_name() -> &'static str {
         "game_shaders"

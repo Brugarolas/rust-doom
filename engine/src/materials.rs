@@ -1,8 +1,8 @@
 use super::entities::{Entities, Entity, EntityId};
-use super::errors::Result;
 use super::shaders::{ShaderId, Shaders};
 use super::system::InfallibleSystem;
 use super::uniforms::UniformId;
+use anyhow::Result;
 use idcontain::IdMapVec;
 use log::{debug, error};
 use wgpu::util::DeviceExt;

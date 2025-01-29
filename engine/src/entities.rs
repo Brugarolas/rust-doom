@@ -1,6 +1,5 @@
-use super::errors::{ErrorKind, Result};
 use super::system::InfallibleSystem;
-use failchain::bail;
+use anyhow::{bail, Result};
 use idcontain::{Id, IdSlab, OptionId};
 use log::{debug, error};
 use std::fmt::Write;
@@ -94,11 +93,10 @@ impl Entities {
 
         if !parent_exists {
             slab.remove(new_id);
-            bail!(ErrorKind::NoSuchEntity {
-                context: "add",
-                needed_by: Some(name),
-                id: parent.cast(),
-            });
+            bail!(
+                "No entity with id `{parent:?}`, needed by `{needed_by:?}` when `add`",
+                needed_by = Some(name),
+            );
         }
 
         if let Some(old_child) = old_child.into() {

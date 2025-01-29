@@ -1,10 +1,10 @@
 use super::entities::{Entities, Entity, EntityId};
-use super::errors::Result;
 use super::system::InfallibleSystem;
 use super::window::Window;
 use crate::internal_derive::DependenciesFrom;
 use crate::renderer::MSAA_SAMPLE_COUNT;
 
+use anyhow::Result;
 use idcontain::IdMapVec;
 use log::{debug, error};
 use math::{Mat4, Vec2, Vec3};

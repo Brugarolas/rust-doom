@@ -1,6 +1,5 @@
-use super::errors::{Error, ErrorKind, Result};
+use anyhow::{bail, Context as _, Result};
 use engine::{DependenciesFrom, System};
-use failchain::{bail, ResultExt};
 use log::info;
 use std::path::PathBuf;
 use wad::{
@@ -63,7 +62,6 @@ pub struct Dependencies<'context> {
 
 impl<'context> System<'context> for WadSystem {
     type Dependencies = Dependencies<'context>;
-    type Error = Error;
 
     fn debug_name() -> &'static str {
         "wad"
@@ -77,13 +75,11 @@ impl<'context> System<'context> for WadSystem {
             let level_name = archive.level_lump(level_index)?.name();
             Ok((archive, textures, level_index, level_name))
         })()
-        .chain_err(|| ErrorKind(format!("WAD setup failed with: {:#?}", deps.config)))?;
+        .with_context(|| format!("WAD setup failed with: {:#?}", deps.config))?;
 
         if level_index >= archive.num_levels() {
             bail!(
-                ErrorKind,
-                "Level index {} is not in valid range 0..{}, see --list-levels for level names.",
-                level_index,
+                "Level index {level_index} is not in valid range 0..{}, see --list-levels for level names.",
                 archive.num_levels()
             );
         }
@@ -92,12 +88,8 @@ impl<'context> System<'context> for WadSystem {
             "Loading initial level {:?} ({})...",
             level_name, level_index
         );
-        let level = WadLevel::from_archive(&archive, level_index).chain_err(|| {
-            ErrorKind(format!(
-                "when loading WAD level with config {:#?}",
-                deps.config
-            ))
-        })?;
+        let level = WadLevel::from_archive(&archive, level_index)
+            .with_context(|| format!("when loading WAD level with config {:#?}", deps.config))?;
         info!("Analysing level...");
         let analysis = LevelAnalysis::new(&level, archive.metadata());
 
@@ -128,11 +120,11 @@ impl<'context> System<'context> for WadSystem {
                 self.level_name = self
                     .archive
                     .level_lump(self.next_level_index)
-                    .chain_err(|| {
-                        ErrorKind(format!(
+                    .with_context(|| {
+                        format!(
                             "while accessing level name for next level request {}",
                             self.next_level_index
-                        ))
+                        )
                     })?
                     .name();
                 info!(
@@ -140,11 +132,11 @@ impl<'context> System<'context> for WadSystem {
                     self.level_name, self.next_level_index
                 );
                 self.level = WadLevel::from_archive(&self.archive, self.current_level_index)
-                    .chain_err(|| {
-                        ErrorKind(format!(
+                    .with_context(|| {
+                        format!(
                             "while loading next level {} ({}) for next level request",
                             self.level_name, self.next_level_index
-                        ))
+                        )
                     })?;
                 info!("Analysing new level...");
                 self.analysis = LevelAnalysis::new(&self.level, self.archive.metadata());

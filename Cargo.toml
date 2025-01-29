@@ -17,6 +17,7 @@ math = { path = "math" }
 env_logger = "0.10.1"
 structopt = "0.3.21"
 failure = "0.1.8"
+anyhow = "1.0.95"
 
 [dependencies.log]
 features = ["release_max_level_info"]

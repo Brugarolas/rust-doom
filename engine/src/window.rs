@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
-use crate::ErrorKind;
-
-use super::errors::{Error, Result};
 use super::system::System;
-use failchain::BoxedError;
+use anyhow::{anyhow, Context, Result};
 use winit::event_loop::EventLoop;
 
 pub struct WindowConfig {
@@ -60,7 +57,7 @@ impl Window {
     pub fn surface_texture(&self) -> Result<wgpu::SurfaceTexture> {
         self.surface
             .get_current_texture()
-            .map_err(|_| BoxedError::from(ErrorKind::Context("Could not get current texture")))
+            .context("Could not get current texture")
     }
 
     pub fn window(&self) -> &winit::window::Window {
@@ -74,10 +71,9 @@ impl Window {
 
 impl<'context> System<'context> for Window {
     type Dependencies = &'context WindowConfig;
-    type Error = Error;
 
     fn create(config: &'context WindowConfig) -> Result<Self> {
-        let events = EventLoop::new().map_err(|e| ErrorKind::CreateWindow(e.to_string()))?;
+        let events = EventLoop::new().context("Error creating window")?;
 
         let window = Arc::new(
             events
@@ -86,26 +82,23 @@ impl<'context> System<'context> for Window {
                         .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
                         .with_title(&config.title),
                 )
-                .map_err(|e| ErrorKind::CreateWindow(format!("{e}")))?,
+                .context("Error creating window")?,
         );
 
         window
             .set_cursor_grab(winit::window::CursorGrabMode::Confined)
-            .map_err(|e| ErrorKind::CreateWindow(e.to_string()))?;
+            .context("Error creating window")?;
 
         let instance = create_instance();
         let surface = instance
             .create_surface(window.clone())
-            .map_err(|_| ErrorKind::Context("Could not create surface"))?;
+            .context("Could not create surface")?;
         let (device, adapter, queue) = pollster::block_on(create_device(instance, &surface))
-            .map_err(|_| ErrorKind::Context("Could not create WGPU device"))?;
+            .context("Could not create WGPU device")?;
         let (width, height) = (window.inner_size().width, window.inner_size().height);
-        let configuration =
-            surface
-                .get_default_config(&adapter, width, height)
-                .ok_or(ErrorKind::Context(
-                    "Could not get default surface configuration",
-                ))?;
+        let configuration = surface
+            .get_default_config(&adapter, width, height)
+            .ok_or(anyhow!("Could not get default surface configuration"))?;
         surface.configure(&device, &configuration);
 
         Ok(Window {

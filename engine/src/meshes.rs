@@ -1,8 +1,7 @@
-use crate::Shaders;
-
 use super::entities::{Entities, Entity, EntityId};
-use super::errors::Result;
 use super::system::InfallibleSystem;
+use crate::Shaders;
+use anyhow::Result;
 use bytemuck::Pod;
 use cgmath::{Quaternion, SquareMatrix, Vector3};
 use idcontain::IdMapVec;

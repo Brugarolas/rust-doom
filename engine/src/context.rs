@@ -1,10 +1,8 @@
-use super::errors::{ErrorKind, Result};
 use super::input::Input;
 use super::system::{BoundSystem, System};
 use super::type_list::{Cons, Nil, Peek, Pluck, PluckInto};
 use super::window::Window;
-use failchain::ResultExt;
-use failure::{AsFail, Fail};
+use anyhow::{Context as _, Result};
 use std::{marker::PhantomData, time::Instant};
 use winit::event_loop::ControlFlow as WinitControlFlow;
 
@@ -93,7 +91,7 @@ impl<SystemListT> ContextBuilder<SystemListT> {
             + Peek<Window, WindowIndexT>
             + Peek<Input, InputIndexT>,
     {
-        SystemListT::setup_list(&mut self.systems).chain_err(|| ErrorKind::Context("setup"))?;
+        SystemListT::setup_list(&mut self.systems).context("Context setup error")?;
         log::info!("Context set up.");
         Ok(ContextObject {
             systems: Some(self.systems),
@@ -159,7 +157,7 @@ where
     IndicesT: 'static,
 {
     fn step(&mut self) -> Result<()> {
-        SystemListT::update_list(self.systems_mut()).chain_err(|| ErrorKind::Context("update"))
+        SystemListT::update_list(self.systems_mut()).context("Context update error")
     }
 
     fn run(mut self) -> Result<()> {
@@ -196,10 +194,10 @@ where
 
                 if let Err(error) = result {
                     log::error!("Fatal error: {}", error);
-                    let mut cause = error.as_fail();
-                    while let Some(new_cause) = cause.cause() {
-                        cause = new_cause;
-                        log::error!("    caused by: {}", cause);
+                    let mut maybe_source = error.source();
+                    while let Some(source) = maybe_source {
+                        log::error!("    caused by: {}", source);
+                        maybe_source = source.source();
                     }
                     if std::env::var("RUST_BACKTRACE")
                         .map(|value| value == "1")
@@ -212,7 +210,7 @@ where
                     target.exit();
                 }
             })
-            .chain_err(|| ErrorKind::Context("Event loop"))?;
+            .context("Event loop")?;
         Ok(())
     }
 
@@ -222,9 +220,9 @@ where
         } else {
             return Ok(());
         };
-        SystemListT::teardown_list(&mut systems).chain_err(|| ErrorKind::Context("teardown"))?;
+        SystemListT::teardown_list(&mut systems).context("Context teardown error")?;
         log::info!("Context tore down.");
-        SystemListT::destroy_list(systems).chain_err(|| ErrorKind::Context("destruction"))?;
+        SystemListT::destroy_list(systems).context("Context destruction error")?;
         log::info!("Context destroyed.");
         Ok(())
     }
@@ -393,27 +391,27 @@ where
     fn raw_setup(&mut self, context: &'context mut ContextT) -> Result<()> {
         log::info!("Setting up system {:?}...", Self::debug_name());
         self.setup(<Self as System>::Dependencies::dependencies_from(context))
-            .chain_err(|| ErrorKind::System("setup", Self::debug_name()))
+            .with_context(|| format!("System setup failed for `{}`.", Self::debug_name()))
     }
 
     #[inline]
     fn raw_update(&mut self, context: &'context mut ContextT) -> Result<()> {
         self.update(<Self as System>::Dependencies::dependencies_from(context))
-            .chain_err(|| ErrorKind::System("update", Self::debug_name()))
+            .with_context(|| format!("System update failed for `{}`.", Self::debug_name()))
     }
 
     #[inline]
     fn raw_teardown(&mut self, context: &'context mut ContextT) -> Result<()> {
         log::info!("Tearing down system {:?}...", Self::debug_name());
         self.teardown(<Self as System>::Dependencies::dependencies_from(context))
-            .chain_err(|| ErrorKind::System("teardown", Self::debug_name()))
+            .with_context(|| format!("System teardown failed for `{}`.", Self::debug_name()))
     }
 
     #[inline]
     fn raw_destroy(self, context: &'context mut ContextT) -> Result<()> {
         log::info!("Destroying system {:?}...", Self::debug_name());
         self.destroy(<Self as System>::Dependencies::dependencies_from(context))
-            .chain_err(|| ErrorKind::System("destruction", Self::debug_name()))
+            .with_context(|| format!("System destruction failed for `{}`.", Self::debug_name()))
     }
 }
 
@@ -427,7 +425,7 @@ where
     fn raw_create(context: &'context mut ContextT) -> Result<Self> {
         log::info!("Creating system {:?}...", Self::debug_name());
         Self::create(<Self as System>::Dependencies::dependencies_from(context))
-            .chain_err(|| ErrorKind::System("creation", Self::debug_name()))
+            .with_context(|| format!("System creation failed for `{}`", Self::debug_name()))
     }
 }
 

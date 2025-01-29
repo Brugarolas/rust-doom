@@ -1,7 +1,7 @@
-use super::errors::{Error, Result};
 use super::system::System;
 use super::window::Window;
 use crate::internal_derive::DependenciesFrom;
+use anyhow::Result;
 use math::Vec2f;
 use num_traits::Zero;
 use std::vec::Vec;
@@ -212,7 +212,6 @@ pub struct Input {
 
 impl<'context> System<'context> for Input {
     type Dependencies = Dependencies<'context>;
-    type Error = Error;
 
     fn create(_deps: Dependencies) -> Result<Self> {
         Ok(Input {

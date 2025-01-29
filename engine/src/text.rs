@@ -5,9 +5,8 @@ use crate::ShaderVertex;
 
 use super::system::System;
 use super::window::Window;
+use anyhow::{anyhow, Context, Result};
 use bytemuck::{offset_of, Pod, Zeroable};
-use failchain::{ChainErrorKind, ResultExt, UnboxedError};
-use failure::Fail;
 use idcontain::{Id, IdSlab};
 use log::{debug, error};
 use math::Pnt2f;
@@ -15,7 +14,6 @@ use rusttype::{self, Font, GlyphId, Point as FontPoint, PositionedGlyph, Scale};
 use std::fs::File;
 use std::io::Read;
 use std::ops::{Index, IndexMut};
-use std::result::Result as StdResult;
 use std::str::Chars as StrChars;
 use std::sync::OnceLock;
 use unicode_normalization::{Recompositions, UnicodeNormalization};
@@ -33,17 +31,6 @@ pub struct TextRenderer {
     pixel_buffer: Vec<u16>,
     pipeline: wgpu::RenderPipeline,
     bind_group_layout: wgpu::BindGroupLayout,
-}
-
-#[derive(Clone, Eq, PartialEq, Debug, Fail)]
-#[fail(display = "Font error: {}", 0)]
-pub struct ErrorKind(String);
-
-pub type Error = UnboxedError<ErrorKind>;
-pub type Result<T> = StdResult<T, Error>;
-
-impl ChainErrorKind for ErrorKind {
-    type Error = Error;
 }
 
 impl TextRenderer {
@@ -254,13 +241,12 @@ impl IndexMut<TextId> for TextRenderer {
 
 impl<'context> System<'context> for TextRenderer {
     type Dependencies = &'context Window;
-    type Error = Error;
 
     fn create(window: &Window) -> Result<Self> {
         let mut font_bytes = Vec::with_capacity(1024 * 1024); // 1MB
         File::open(FONT_PATH)
             .and_then(|mut file| file.read_to_end(&mut font_bytes))
-            .chain_err(|| ErrorKind(format!("Cannot read font at {}", FONT_PATH)))?;
+            .with_context(|| format!("Cannot read font at {FONT_PATH}"))?;
         let bind_group_layout =
             window
                 .device()
@@ -337,7 +323,7 @@ impl<'context> System<'context> for TextRenderer {
             });
         Ok(Self {
             font: Font::try_from_vec_and_index(font_bytes, 0)
-                .ok_or_else(|| ErrorKind(format!("Failed to parse font at {:?}.", FONT_PATH)))?,
+                .ok_or_else(|| anyhow!("Failed to parse font at {FONT_PATH}."))?,
             slab: IdSlab::with_capacity(16),
             pixel_buffer: Vec::new(),
             bind_group_layout,

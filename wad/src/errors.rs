@@ -7,13 +7,13 @@ pub type Result<T> = StdResult<T, ErrorKind>;
 
 #[derive(Error, Debug)]
 pub enum ErrorKind {
-    #[error("Corrupt metadata file")]
+    #[error("Corrupt metadata file: {0}")]
     CorruptMetadata(#[source] anyhow::Error),
 
-    #[error("Corrupt WAD file")]
+    #[error("Corrupt WAD file: {0}")]
     CorruptWad(#[source] anyhow::Error),
 
-    #[error("I/O WAD error")]
+    #[error("I/O WAD error: {0}")]
     Io(#[source] anyhow::Error),
 }
 

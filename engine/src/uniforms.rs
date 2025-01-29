@@ -1,10 +1,10 @@
 use crate::Shaders;
 
 use super::entities::{Entities, Entity, EntityId};
-use super::errors::Result;
 use super::system::InfallibleSystem;
 use super::window::Window;
 use crate::internal_derive::DependenciesFrom;
+use anyhow::Result;
 use bytemuck::Pod;
 use cgmath::SquareMatrix;
 use idcontain::IdMapVec;

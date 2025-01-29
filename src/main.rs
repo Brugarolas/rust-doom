@@ -1,4 +1,4 @@
-use failure::{bail, Error};
+use anyhow::{bail, Result};
 use game::{self, Game, GameConfig};
 use log::{error, info};
 use math::DurationExt;
@@ -81,12 +81,12 @@ enum Command {
 
 impl App {
     /// Parse options from command-line arguments and run.
-    pub fn run_from_args() -> Result<(), Error> {
+    pub fn run_from_args() -> Result<(), anyhow::Error> {
         Self::from_args().run()
     }
 
     /// Either play the game (if no `Command` was passed), or perform the command.
-    pub fn run(self) -> Result<(), Error> {
+    pub fn run(self) -> Result<(), anyhow::Error> {
         // Init logging, with default `info` level.
         env_logger::Builder::from_env(
             env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV, "info"),
@@ -138,7 +138,7 @@ impl App {
 }
 
 /// Parse a resolution string like `WIDTHxHEIGHT` into `(width, height)`.
-fn parse_resolution(size_str: &str) -> Result<(u32, u32), Error> {
+fn parse_resolution(size_str: &str) -> anyhow::Result<(u32, u32)> {
     let size_if_ok = size_str
         .find('x')
         .and_then(|x_index| {
@@ -164,10 +164,10 @@ fn parse_resolution(size_str: &str) -> Result<(u32, u32), Error> {
 fn main() {
     if let Err(error) = App::run_from_args() {
         error!("Fatal error: {}", error);
-        let mut cause = error.as_fail();
-        while let Some(new_cause) = cause.cause() {
-            cause = new_cause;
-            error!("    caused by: {}", cause);
+        let mut maybe_source = error.source();
+        while let Some(source) = maybe_source {
+            error!("    caused by: {}", source);
+            maybe_source = source.source();
         }
         if env::var("RUST_BACKTRACE")
             .map(|value| value == "1")

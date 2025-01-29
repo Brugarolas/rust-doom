@@ -1,64 +1,37 @@
-use failchain::{BoxedError, ChainErrorKind};
-use failure::Fail;
 use idcontain::Id;
-use std::result::Result as StdResult;
+use thiserror::Error;
 
-pub type Error = BoxedError<ErrorKind>;
-pub type Result<T> = StdResult<T, Error>;
-
-#[derive(Clone, Eq, PartialEq, Debug, Fail)]
+#[derive(Error, Debug)]
 pub enum ErrorKind {
-    #[fail(display = "{}", 0)]
+    #[error("{0}")]
     CreateWindow(String),
 
-    #[fail(display = "I/O error when accessing `{}` for resource `{}`.", 0, 1)]
+    #[error("I/O error when accessing `{0}` for resource `{1}`.")]
     ResourceIo(&'static str, &'static str),
 
-    #[fail(
-        display = "Linking/compiling shader for `{}` failed with:\n{}",
-        needed_by, log
-    )]
+    #[error("Linking/compiling shader for `{needed_by}` failed with:\n{log}")]
     Shader { log: String, needed_by: String },
 
-    #[fail(
-        display = "Feature needed by `{}` is not supported on this platform.",
-        needed_by
-    )]
+    #[error("Feature needed by `{needed_by}` is not supported on this platform.")]
     UnsupportedFeature { needed_by: String },
 
-    #[fail(
-        display = "Out of video memory when trying to allocate `{}`.",
-        needed_by
-    )]
+    #[error("Out of video memory when trying to allocate `{needed_by}`.")]
     OutOfVideoMemory { needed_by: String },
 
-    #[fail(
-        display = "No entity with id `{:?}`, needed by `{:?}` when `{}`",
-        id, needed_by, context
-    )]
+    #[error("No entity with id `{id:?}`, needed by `{needed_by:?}` when `{context}`")]
     NoSuchEntity {
         context: &'static str,
         needed_by: Option<&'static str>,
         id: Id<()>,
     },
 
-    #[fail(
-        display = "No component with id `{:?}`, needed by `{:?}` when `{}`",
-        id, needed_by, context
-    )]
+    #[error("No component with id `{id:?}`, needed by `{needed_by:?}` when `{context}`")]
     NoSuchComponent {
         context: &'static str,
         needed_by: Option<&'static str>,
         id: Id<()>,
     },
 
-    #[fail(display = "Context {} error", 0)]
-    Context(&'static str),
-
-    #[fail(display = "System {} failed for `{}`.", 0, 1)]
+    #[error("System {0} failed for `{1}`.")]
     System(&'static str, &'static str),
-}
-
-impl ChainErrorKind for ErrorKind {
-    type Error = Error;
 }

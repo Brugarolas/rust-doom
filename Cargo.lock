@@ -697,8 +697,6 @@ dependencies = [
  "cgmath",
  "engine_derive",
  "env_logger 0.11.6",
- "failchain",
- "failure",
  "futures",
  "idcontain",
  "image",
@@ -708,6 +706,7 @@ dependencies = [
  "num-traits",
  "pollster",
  "rusttype",
+ "thiserror 2.0.11",
  "tobj",
  "unicode-normalization",
  "wgpu",
@@ -2421,6 +2420,7 @@ checksum = "cbf4a6aa5f6d6888f39e980649f3ad6b666acdce1d78e95b8a2cb076e687ae30"
 name = "rs_doom"
 version = "0.0.9"
 dependencies = [
+ "anyhow",
  "engine",
  "env_logger 0.10.2",
  "failure",

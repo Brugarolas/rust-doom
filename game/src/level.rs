@@ -3,9 +3,10 @@ use super::lights::Lights;
 use super::vertex::{SkyVertex, SpriteVertex, StaticVertex};
 use super::wad_system::WadSystem;
 use super::world::{World, WorldBuilder};
+use anyhow::Result;
 use engine::{
-    DependenciesFrom, Entities, EntityId, Error, Meshes, RenderPipeline, Result, Shaders, System,
-    Tick, Transforms, Uniforms, Window,
+    DependenciesFrom, Entities, EntityId, Meshes, RenderPipeline, Shaders, System, Tick,
+    Transforms, Uniforms, Window,
 };
 use log::{debug, error, info, warn};
 use math::prelude::*;
@@ -201,7 +202,6 @@ impl Level {
 
 impl<'context> System<'context> for Level {
     type Dependencies = Dependencies<'context>;
-    type Error = Error;
 
     fn debug_name() -> &'static str {
         "level"

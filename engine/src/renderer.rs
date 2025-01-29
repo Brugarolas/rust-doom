@@ -1,4 +1,3 @@
-use super::errors::{Error, Result};
 use super::materials::Materials;
 use super::meshes::Meshes;
 use super::pipeline::{Model, RenderPipeline};
@@ -11,6 +10,7 @@ use super::transforms::Transforms;
 use super::uniforms::Uniforms;
 use super::window::Window;
 use crate::internal_derive::DependenciesFrom;
+use anyhow::Result;
 use cgmath::Vector3;
 use log::{error, info};
 use math::{prelude::*, Mat4};
@@ -41,7 +41,6 @@ pub struct Renderer {
 
 impl<'context> System<'context> for Renderer {
     type Dependencies = Dependencies<'context>;
-    type Error = Error;
 
     fn debug_name() -> &'static str {
         "renderer"

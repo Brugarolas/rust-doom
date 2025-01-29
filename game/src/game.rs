@@ -1,17 +1,17 @@
-use super::errors::{ErrorKind, Result};
 use super::game_shaders::GameShaders;
 use super::hud::{Bindings as HudBindings, Hud};
 use super::level::Level;
 use super::player::{Bindings as PlayerBindings, Config as PlayerConfig, Player};
 use super::wad_system::{Config as WadConfig, WadSystem};
 use super::SHADER_ROOT;
+use anyhow::Context as _;
+use anyhow::Result;
 use engine::type_list::Peek;
 use engine::{
     Context, ContextBuilder, Entities, FrameTimers, Input, Materials, Meshes, Projections,
     RenderPipeline, Renderer, ShaderConfig, Shaders, System, TextRenderer, Tick, TickConfig,
     Transforms, Uniforms, Window, WindowConfig,
 };
-use failchain::ResultExt;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
@@ -78,7 +78,7 @@ pub fn create(config: &GameConfig) -> Result<impl Game> {
             .system(Renderer::bind())?
             .build()
     })()
-    .chain_err(|| ErrorKind("during setup".to_owned()))?;
+    .context("during setup")?;
 
     Ok(GameImpl::new(context))
 }
@@ -112,7 +112,7 @@ where
             .take()
             .unwrap()
             .run()
-            .chain_err(|| ErrorKind("during game run".to_owned()))
+            .context("during game run")
     }
 
     fn num_levels(&self) -> usize {
@@ -123,20 +123,14 @@ where
         let context = self.context.as_mut().unwrap();
         let wad = context.peek_mut();
         wad.change_level(level_index);
-        context
-            .step()
-            .chain_err(|| ErrorKind("during load_level first step".to_owned()))?;
-        context
-            .step()
-            .chain_err(|| ErrorKind("during load_level second step".to_owned()))?;
+        context.step().context("during load_level first step")?;
+        context.step().context("during load_level second step")?;
         Ok(())
     }
 
     fn destroy(&mut self) -> Result<()> {
         if let Some(context) = self.context.as_mut() {
-            context
-                .destroy()
-                .chain_err(|| ErrorKind("during explicit destroy".to_owned()))?;
+            context.destroy().context("during explicit destroy")?;
         }
         Ok(())
     }
