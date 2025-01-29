@@ -1,6 +1,5 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::too_many_arguments))]
 
-mod errors;
 mod game;
 mod game_shaders;
 mod hud;
