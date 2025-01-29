@@ -25,7 +25,6 @@ anyhow = "1.0.79"
 cgmath = "0.18.0"
 pollster = "0.3.0"
 lock_api = "0.4.11"
-thiserror = "2.0.11"
 
 [dependencies.log]
 features = ["release_max_level_info"]
