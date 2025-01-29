@@ -1,5 +1,4 @@
 mod archive;
-mod errors;
 mod image;
 mod level;
 mod light;

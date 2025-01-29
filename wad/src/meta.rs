@@ -1,4 +1,3 @@
-use super::errors::ErrorKind;
 use super::name::WadName;
 use super::types::{SpecialType, ThingType, WadCoord};
 use anyhow::{Context, Result};
@@ -165,8 +164,7 @@ impl WadMetadata {
         let path = path.as_ref();
         File::open(path)
             .and_then(|mut file| file.read_to_string(&mut contents))
-            .context("Failed to load metadata to memory")
-            .map_err(ErrorKind::Io)?;
+            .context("Failed to load metadata to memory")?;
         WadMetadata::from_text(&contents)
     }
 

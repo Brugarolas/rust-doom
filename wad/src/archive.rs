@@ -1,8 +1,7 @@
-use super::errors::ErrorKind;
 use super::meta::WadMetadata;
 use super::name::IntoWadName;
 use super::types::{WadInfo, WadLump, WadName};
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use indexmap::IndexMap;
 use log::info;
 use serde::de::DeserializeOwned;
@@ -61,15 +60,10 @@ impl Archive {
 
     fn open_wad(wad_path: &Path) -> Result<OpenWad> {
         // Open file, read and check header.
-        let mut file = BufReader::new(
-            File::open(&wad_path)
-                .context("Could not open WAD file")
-                .map_err(ErrorKind::Io)?,
-        );
+        let mut file = BufReader::new(File::open(&wad_path).context("Could not open WAD file")?);
 
-        let header: WadInfo = bincode::deserialize_from(&mut file)
-            .context("Could not read WAD header")
-            .map_err(ErrorKind::CorruptWad)?;
+        let header: WadInfo =
+            bincode::deserialize_from(&mut file).context("Could not read WAD header")?;
 
         if header.identifier != IWAD_HEADER {
             bail!(
@@ -84,11 +78,15 @@ impl Archive {
         let mut index_map = IndexMap::new();
 
         file.seek(SeekFrom::Start(header.info_table_offset as u64))
-            .map_err(|_| ErrorKind::seeking_to_info_table_offset(header.info_table_offset))?;
+            .with_context(|| {
+                format!(
+                    "Seeking to `info_table_offset` at {} failed",
+                    header.info_table_offset
+                )
+            })?;
         for i_lump in 0..header.num_lumps {
             let fileinfo: WadLump = bincode::deserialize_from(&mut file)
-                .with_context(|| format!("Invalid lump info for lump {i_lump}"))
-                .map_err(ErrorKind::CorruptWad)?;
+                .with_context(|| format!("Invalid lump info for lump {i_lump}"))?;
 
             index_map.insert(fileinfo.name, lumps.len());
             lumps.push(LumpInfo {
@@ -131,7 +129,7 @@ impl Archive {
     {
         let name: WadName = name.into_wad_name()?;
         self.named_lump(&name)?
-            .ok_or_else(|| ErrorKind::missing_required_lump(&name).into())
+            .ok_or_else(|| anyhow!("Missing required lump {name:?}"))
     }
 
     pub fn named_lump<Q>(&self, name: &Q) -> Result<Option<LumpReader>>
@@ -151,7 +149,7 @@ impl Archive {
             info: self
                 .lumps
                 .get(index)
-                .ok_or_else(|| ErrorKind::missing_required_lump(&index))?,
+                .ok_or_else(|| anyhow!("Missing required lump {index:?}"))?,
             index,
         })
     }
@@ -201,7 +199,6 @@ impl<'a> LumpReader<'a> {
                                 lump_name = info.name,
                             )
                         })
-                        .context("Corrupt WAD file")
                 })
                 .collect::<Result<Vec<_>>>()
         })
@@ -228,7 +225,6 @@ impl<'a> LumpReader<'a> {
                         lump_name = info.name,
                     )
                 })
-                .context("Corrupt WAD file")
         })
     }
 
@@ -254,7 +250,12 @@ impl<'a> LumpReader<'a> {
             for _ in 0..num_blobs {
                 blobs.push(B::default());
                 file.read_exact(blobs.last_mut().expect("empty blobs").as_mut())
-                    .map_err(|_| ErrorKind::reading_lump(index, info.name.as_ref()))?;
+                    .with_context(||
+                        format!(
+                            "Invalid element {index} in lump `{lump_name}` (index=0)",
+                            lump_name = info.name,
+                        )
+                    )?;
             }
             Ok(blobs)
         })
@@ -265,8 +266,12 @@ impl<'a> LumpReader<'a> {
         self.read(|file| {
             let old_size = bytes.len();
             bytes.resize(old_size + info.size, 0u8);
-            file.read_exact(&mut bytes[old_size..])
-                .map_err(|_| ErrorKind::reading_lump(index, info.name.as_ref()))?;
+            file.read_exact(&mut bytes[old_size..]).with_context(|| {
+                format!(
+                    "Invalid element {index} in lump `{lump_name}` (index=0)",
+                    lump_name = info.name,
+                )
+            })?;
             Ok(())
         })
     }
@@ -286,8 +291,12 @@ impl<'a> LumpReader<'a> {
             archive,
         } = *self;
         let mut file = archive.file.borrow_mut();
-        file.seek(SeekFrom::Start(info.offset))
-            .map_err(|_| ErrorKind::seeking_to_lump(index, info.name.as_ref()))?;
+        file.seek(SeekFrom::Start(info.offset)).with_context(|| {
+            format!(
+                "Seeking to lump {index}, `{name}` failed",
+                name = info.name.as_ref()
+            )
+        })?;
         with(&mut Read::take(&mut *file, info.size as u64))
     }
 }

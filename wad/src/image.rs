@@ -1,6 +1,5 @@
-use super::errors::ErrorKind;
 use super::types::WadTextureHeader;
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Context as _, Result};
 use byteorder::{LittleEndian, ReadBytesExt};
 use log::{debug, warn};
 use math::Vec2;
@@ -39,24 +38,20 @@ impl Image {
         let mut reader = buffer;
         let width = reader
             .read_u16::<LittleEndian>()
-            .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing width.")))?
-            as usize;
+            .context("Image missing width.")? as usize;
         let height = reader
             .read_u16::<LittleEndian>()
-            .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing height.")))?
-            as usize;
+            .context("Image missing height.")? as usize;
         if width > MAX_IMAGE_SIZE || height > MAX_IMAGE_SIZE {
             bail!("Image too large {width}x{height}.");
         }
 
         let x_offset = reader
             .read_i16::<LittleEndian>()
-            .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing x offset")))?
-            as isize;
+            .context("Image missing x offset")? as isize;
         let y_offset = reader
             .read_i16::<LittleEndian>()
-            .map_err(|_| ErrorKind::CorruptWad(anyhow!("Image missing y offset")))?
-            as isize;
+            .context("Image missing y offset")? as isize;
 
         let mut pixels = vec![!0; width * height];
 
@@ -64,10 +59,11 @@ impl Image {
         for i_column in 0..width {
             // Each column is defined as a number of vertical `runs' which are
             // defined starting at `offset' in the buffer.
-            let offset = reader
-                .read_u32::<LittleEndian>()
-                .map_err(|_| ErrorKind::unfinished_image_column(i_column, None, width, height))?
-                as isize;
+            let offset = reader.read_u32::<LittleEndian>().with_context(|| {
+                format!(
+                    "Unfinished column {i_column} in run None, in image of size {width}x{height}",
+                )
+            })? as isize;
             if offset >= buffer.len() as isize {
                 bail!(
                     "Invalid image column offset in {i_column}, offset={offset}, size={}.",
@@ -80,7 +76,7 @@ impl Image {
                 // The first byte contains the vertical coordinate of the run's
                 // start.
                 let row_start = *source.next().ok_or_else(|| {
-                    ErrorKind::unfinished_image_column(i_column, Some(i_run), width, height)
+                    anyhow!("Unfinished column {i_column} in run {i_run:?}, in image of size {width}x{height}")
                 })? as usize;
 
                 // The special value of 255 means this is the last run in the
@@ -92,9 +88,7 @@ impl Image {
                 // The second byte is the length of this run. Skip an additional
                 // byte which is ignored for some reason.
                 let run_length = *source.next().ok_or_else(|| {
-                    ErrorKind::CorruptWad(anyhow!(
-                        "Missing image run length: column {i_column}, run {i_run}",
-                    ))
+                    anyhow!("Missing image run length: column {i_column}, run {i_run}")
                 })? as usize;
 
                 // Check that the run fits in the image.
